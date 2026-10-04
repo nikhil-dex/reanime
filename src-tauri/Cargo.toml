@@ -1,0 +1,16 @@
+[package]
+name = "re-anime"
+version = "0.1.0"
+description = "Re:Anime desktop studio"
+authors = ["Re:Anime"]
+edition = "2021"
+
+[lib]
+name = "re_anime_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
