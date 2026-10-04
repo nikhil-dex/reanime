@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Icon } from "../common/Icon";
 import { useEditorStore } from "../../store/editorStore";
+import { resourceRegistry } from "../../data/resourceRegistry";
 
 const formatTime = (seconds: number) => {
   const wholeSeconds = Math.floor(seconds);
@@ -15,6 +16,7 @@ export function Timeline() {
   const playhead = useEditorStore((state) => state.playhead);
   const setPlaying = useEditorStore((state) => state.setPlaying);
   const setPlayhead = useEditorStore((state) => state.setPlayhead);
+  const characters = useEditorStore((state) => state.project.scenes.find((scene) => scene.id === state.activeSceneId)?.characters ?? []);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -41,7 +43,7 @@ export function Timeline() {
       <div className="timeline-body">
         <div className="track-labels">
           <div className="track-header">TRACKS <button aria-label="Add track"><Icon name="plus" /></button></div>
-          <div className="track-name"><span className="track-color character" />Kai</div>
+          {characters.map((character) => <div className="track-name" key={character.id}><span className="track-color character" />{resourceRegistry.characters[character.characterId]?.name ?? character.characterId}</div>)}
           <div className="track-name"><span className="track-color background" />Background</div>
         </div>
         <div className="track-area">
@@ -51,7 +53,7 @@ export function Timeline() {
             ))}
           </div>
           <div className="track-lane">
-            <div className="timeline-clip character-clip"><span>Kai · neutral</span></div>
+            {characters.map((character) => <div className="timeline-clip character-clip" key={character.id}><span>{resourceRegistry.characters[character.characterId]?.name ?? character.characterId} · {character.expression}</span></div>)}
           </div>
           <div className="track-lane">
             <div className="timeline-clip background-clip"><span>Placeholder background</span></div>

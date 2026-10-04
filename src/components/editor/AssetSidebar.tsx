@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Icon, type IconName } from "../common/Icon";
+import { resourceRegistry } from "../../data/resourceRegistry";
+import { useEditorStore } from "../../store/editorStore";
 
 const sections: { label: string; icon: IconName; detail: string }[] = [
   { label: "Characters", icon: "characters", detail: "Kai" },
@@ -11,6 +13,9 @@ const sections: { label: string; icon: IconName; detail: string }[] = [
 
 export function AssetSidebar() {
   const [active, setActive] = useState("Characters");
+  const addCharacter = useEditorStore((state) => state.addCharacter);
+  const selectedObjectId = useEditorStore((state) => state.selectedObjectId);
+  const characters = Object.values(resourceRegistry.characters);
 
   return (
     <aside className="asset-sidebar panel">
@@ -32,18 +37,22 @@ export function AssetSidebar() {
           >
             <Icon name={section.icon} />
             <span>{section.label}</span>
-            <span className="asset-count">{section.label === "Characters" ? "1" : "0"}</span>
+            <span className="asset-count">{section.label === "Characters" ? characters.length : "0"}</span>
           </button>
         ))}
       </nav>
       <div className="asset-section">
         <div className="section-label">{active.toUpperCase()}</div>
         {active === "Characters" ? (
-          <button className="character-asset selected" onClick={() => setActive("Characters")}>
-            <span className="asset-avatar">K</span>
-            <span className="asset-copy"><strong>Kai</strong><small>Sample character</small></span>
-            <span className="status-dot" />
-          </button>
+          <>
+            {characters.map((character) => (
+              <button className={`character-asset${selectedObjectId?.startsWith(`${character.id}-`) ? " selected" : ""}`} key={character.id} onClick={() => addCharacter(character.id)}>
+                <span className="asset-avatar">{character.name[0]}</span>
+                <span className="asset-copy"><strong>{character.name}</strong><small>Sample character</small></span>
+                <span className="status-dot" />
+              </button>
+            ))}
+          </>
         ) : (
           <div className="empty-assets">
             <Icon name={sections.find((section) => section.label === active)?.icon ?? "spark"} />

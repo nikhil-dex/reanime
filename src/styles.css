@@ -106,6 +106,9 @@ button:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
 .scale-icon { color: #ada2ff !important; font-size: 13px !important; }
 .select-field { width: 100%; height: 33px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; border: 1px solid #343540; border-radius: 5px; background: #14151b; color: #d0cfe0; text-align: left; font-size: 10px; }
 .select-field > span { display: flex; align-items: center; gap: 7px; }
+.control-field { display: block; margin-bottom: 10px; }
+.control-field > span { display: block; margin-bottom: 6px; color: #9b9ba7; font-size: 10px; }
+.control-field .select-field { appearance: auto; }
 .select-field svg { width: 13px; height: 13px; transform: rotate(90deg); color: #888995; }
 .expression-dot { width: 7px; height: 7px; border-radius: 50%; background: #91cbb2; }
 .layer-group { padding-bottom: 13px; }
