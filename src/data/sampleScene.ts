@@ -8,14 +8,15 @@ export const sampleScene: Scene = {
   characters: [
     {
       id: "kai-instance",
-      characterId: "kai",
-      position: { x: 0.5, y: 0.58 },
+      characterId: "subaru",
+      position: { x: 0.5, y: 0.55 },
       scale: 1,
       expression: "neutral",
+      body: "neutral",
       eyes: "normal",
       eyebrows: "normal",
+      face: "normal",
       mouth: "neutral",
-      arms: { left: "neutral", right: "neutral" },
       visible: true,
       layer: 1,
     },

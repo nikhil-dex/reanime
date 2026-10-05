@@ -1,0 +1,16 @@
+{
+  "packages": [
+    {
+      "path": "/assets/characters/subaru/"
+    },
+    {
+      "path": "/assets/characters/subaru_v2/"
+    },
+    {
+      "path": "/assets/characters/subaru_v2.1/"
+    },
+    {
+      "path": "/assets/characters/subaru_v3/"
+    }
+  ]
+}

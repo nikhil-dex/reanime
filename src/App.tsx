@@ -3,6 +3,7 @@ import { PreviewWorkspace } from "./components/editor/PreviewWorkspace";
 import { PropertiesPanel } from "./components/editor/PropertiesPanel";
 import { Icon } from "./components/common/Icon";
 import { Timeline } from "./components/timeline/Timeline";
+import { useEffect } from "react";
 import { useEditorStore } from "./store/editorStore";
 
 function downloadProject(project: ReturnType<typeof useEditorStore.getState>["project"]) {
@@ -21,6 +22,13 @@ export default function App() {
   const resetProject = useEditorStore((state) => state.resetProject);
   const isPlaying = useEditorStore((state) => state.isPlaying);
   const setPlaying = useEditorStore((state) => state.setPlaying);
+  const refreshResources = useEditorStore((state) => state.refreshResources);
+
+  useEffect(() => {
+    void refreshResources().catch((error: unknown) => {
+      console.error("Character package failed to load", error);
+    });
+  }, [refreshResources]);
 
   return (
     <main className="app-shell">

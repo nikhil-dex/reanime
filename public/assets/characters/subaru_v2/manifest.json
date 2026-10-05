@@ -1,0 +1,284 @@
+{
+  "package": "ReAnime Subaru Character",
+  "character": "Subaru Natsuki",
+  "package_id": "SUBARU_CHARACTER_v0.2",
+  "version": "0.2.0",
+  "status": "UPDATED_HEAD_REVIEW",
+  "locked_date": "2026-10-05",
+  "source_of_truth": "master/subaru_master_v1.png",
+  "master_sha256": "b428036147dfbd2ee15c2bd9370cd56652577fc115c6f694565df2afad870a7c",
+  "canvas": "1024x1024",
+  "format": "RGBA PNG",
+  "renderer_architecture": [
+    "Body",
+    "Head",
+    "Hair",
+    "Eyes",
+    "Eyebrows",
+    "Mouth"
+  ],
+  "body_contains_arms_and_hands": true,
+  "separate_arms_directory": false,
+  "expression_assets_are_reference_previews": true,
+  "rules": [
+    "Master is immutable.",
+    "Future assets must derive from this locked master/package.",
+    "Do not use drifted variants as new references.",
+    "Do not redesign or reinterpret the character.",
+    "Keep production assets at 1024x1024 RGBA with transparent backgrounds.",
+    "Only the requested category may change.",
+    "Renderer expressions must be composed from modular layers."
+  ],
+  "assets": {
+    "master/subaru_master_v1.png": {
+      "sha256": "b428036147dfbd2ee15c2bd9370cd56652577fc115c6f694565df2afad870a7c",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "body/neutral.png": {
+      "sha256": "368164b1f3ba0dc43b7a9009521846da91df8f7f21d94f39e016b43e1a35af7c",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "body/pointing.png": {
+      "sha256": "8cee355511d7cc946019a237db0ae348cebc3519aa8bcc0628ee890c5711c2ab",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "body/crossed_arms.png": {
+      "sha256": "1f7f8a7dabaa8f17815ff265e2eba0c0f66c3d4f0f2e9f231d8f1297e2ed949c",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "body/facepalm.png": {
+      "sha256": "cc5e385aa0ae857e4986cd8ceb131b7304c00fd940a697fae2f7f2b1174acb73",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "body/thumbs_up.png": {
+      "sha256": "f70974ab3af20a0d0791b7bc694d94150381d04b354ee19c92a1e0a20932626f",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "head/base.png": {
+      "sha256": "7cc8f23c91aad1bff4d568eb3bc69029c80d1fb1840a582d7366abc53a7138ba",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "hair/default.png": {
+      "sha256": "4d8701a44e3ceadf2ae368853bc29ba2a1b6a5fe99469df8ab06db9e48ebe80e",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyes/normal.png": {
+      "sha256": "fcb777dd13f09f199820bec3764ca0dfa10ab930a5fc74f257d3796d49fd4e3e",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyes/closed.png": {
+      "sha256": "e4d9a4cc3e25a667a6a0d4cf9239f873bdf4fb9db4bf302e3a9d4b459e4dcd71",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyes/wide.png": {
+      "sha256": "8640f26809eb712188389d78dc43a38e56b75776021ef21df1e69f9b4d9faace",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyes/angry.png": {
+      "sha256": "59e0360f53e181f81711726e1ee8cca8b4f9a27887471f3ae9c7f9be0825eae9",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyes/sad.png": {
+      "sha256": "a2eb5cffbeb94f6e73fd4b15d08bd682a87f25caea80d22290fa40b6ddafc446",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyebrows/normal.png": {
+      "sha256": "ac7439a8ba7ce5181cfeec675c70d9bfb5047e7f9e2f61aea58236262ab65c26",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyebrows/raised.png": {
+      "sha256": "771533a01c97ecd2c6ccaef6ccd17832611281cdf9f07c4da7875fadeacde481",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyebrows/angry.png": {
+      "sha256": "dd84e9ff1dd178acb73dd0bfabd999deda14d17e6052ff90c1398aa5376fc347",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyebrows/worried.png": {
+      "sha256": "00785dd6f2a3303ce56076549859d81f27e36182ae214cbd2a6d75bdb34a00d6",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "eyebrows/sad.png": {
+      "sha256": "19689a6874d09ca350cae7711db7af4480c5cb40866df0e2abfa44e595ddc12b",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "mouths/neutral.png": {
+      "sha256": "b299ad492edc236cd9a446914a07c7439d989672e4dd954e8594236207ba40b7",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "mouths/smile.png": {
+      "sha256": "0f69374c458af6d3668f504339b296dc926cf710d3de88a987bd9ad06401931f",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "mouths/open.png": {
+      "sha256": "67a25d03e588f24dff89307739b3223ba031bdce342ba8a64a6939c01761835f",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "mouths/shout.png": {
+      "sha256": "ed47c3602a1f885fbe0a34a5b5f643e182abadf501a6c44ad0aea929b51f304f",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "mouths/sad.png": {
+      "sha256": "de396ca36fcf6638d69edff31bbd483c823c6fb9067bba5318e1c891617af7d6",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "expressions/neutral.png": {
+      "sha256": "06d2867e1fecca32a495d661c9e4ab6da5d0aeef735cdddb93d6d3ec71f555d3",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "expressions/happy.png": {
+      "sha256": "c17fb12b5fa002081c1081b2f816d54ce6b8b647627a7355c8a0c3cfe3139c94",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "expressions/angry.png": {
+      "sha256": "fdab82257150f3e973bcab68af089d20e5548c9deaa0f5f669f6a2ffada28001",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "expressions/shocked.png": {
+      "sha256": "818a59eff08d811c80d9afc1a69a564db8837e8913c6438703ff8ea620044fc9",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "expressions/sad.png": {
+      "sha256": "639f5eed001db9b9c0d6da8830e5c2615999e60879b3c330a0b554f468bdeb98",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "expressions/confused.png": {
+      "sha256": "83cbd5211f62dc1fd9ccbed0a05620a9ee118cfcb50787e519f798833f050314",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    },
+    "expressions/dead_inside.png": {
+      "sha256": "6a98b0365c3430debca14895a22e76729b9c50f9efe6172984e601a4fc4dfe15",
+      "size": [
+        1024,
+        1024
+      ],
+      "format": "RGBA PNG"
+    }
+  },
+  "qa": {
+    "checked": 30,
+    "issues": []
+  },
+  "previous_version": "SUBARU_CHARACTER_v0.1",
+  "change_log": [
+    "Replaced only head/base.png with the newly corrected clean base-head asset.",
+    "Master and all non-head assets were preserved from SUBARU_CHARACTER_v0.1.",
+    "This version requires visual QA before being promoted to LOCKED."
+  ]
+}

@@ -14,6 +14,8 @@ const sections: { label: string; icon: IconName; detail: string }[] = [
 export function AssetSidebar() {
   const [active, setActive] = useState("Characters");
   const addCharacter = useEditorStore((state) => state.addCharacter);
+  const refreshResources = useEditorStore((state) => state.refreshResources);
+  useEditorStore((state) => state.resourceRevision);
   const selectedObjectId = useEditorStore((state) => state.selectedObjectId);
   const characters = Object.values(resourceRegistry.characters);
 
@@ -24,6 +26,9 @@ export function AssetSidebar() {
           <span className="eyebrow">WORKSPACE</span>
           <h2>Assets</h2>
         </div>
+        <button className="icon-button small" aria-label="Refresh assets" title="Refresh character packages" onClick={() => void refreshResources()}>
+          ↻
+        </button>
         <button className="icon-button small" aria-label="Add asset" title="Asset importing is not available yet">
           <Icon name="plus" />
         </button>

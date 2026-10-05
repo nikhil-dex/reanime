@@ -5,20 +5,38 @@ export interface Point {
 
 export type Expression = "neutral" | "happy" | "angry" | "shocked" | "sad" | "confused" | "dead_inside";
 export type Eyes = "normal" | "closed" | "wide" | "angry" | "sad";
-export type Eyebrows = "normal" | "raised" | "angry" | "sad";
+export type Face = Eyes;
+export type Eyebrows = "normal" | "raised" | "angry" | "worried" | "sad";
 export type Mouth = "neutral" | "smile" | "open" | "shout" | "sad";
-export type ArmPose = "neutral" | "pointing" | "crossed" | "facepalm" | "thumbs_up";
+export type BodyPose = "neutral" | "pointing" | "crossed_arms" | "facepalm" | "thumbs_up";
+export type CalibrationLayer = "body" | "head" | "face" | "hair" | "eyes" | "eyebrows" | "mouth";
+
+export interface CalibrationTransform {
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+  opacity: number;
+}
+
+export interface CharacterCalibration {
+  characterId: string;
+  packageVersion: string;
+  layers: Record<CalibrationLayer, CalibrationTransform>;
+}
 
 export interface Character {
   id: string;
   name: string;
   body: string;
   head: string;
-  hair: string;
+  hair?: string;
   eyes: string;
   eyebrows: string;
+  face?: string;
   mouth: string;
-  arms: string;
+  packageVersion?: string;
   expression: string;
 }
 
@@ -28,13 +46,11 @@ export interface CharacterInstance {
   position: Point;
   scale: number;
   expression: Expression;
+  body: BodyPose;
   eyes: Eyes;
   eyebrows: Eyebrows;
+  face?: Face;
   mouth: Mouth;
-  arms: {
-    left: ArmPose;
-    right: ArmPose;
-  };
   visible: boolean;
   layer: number;
 }
@@ -62,32 +78,31 @@ export interface Project {
 }
 
 export interface CharacterResource extends Character {
-  palette: {
-    body: number;
-    head: number;
-    hair: number;
-    accent: number;
-  };
   assets: {
-    body: string;
+    body: Record<BodyPose, string>;
     head: string;
-    hair: string;
-    eyes: Record<Eyes, string>;
-    eyebrows: Record<Eyebrows, string>;
+    hair?: string;
+    face?: Record<Face, string>;
+    eyes?: Record<Eyes, string>;
+    eyebrows?: Record<Eyebrows, string>;
     mouth: Record<Mouth, string>;
-    arms: Record<ArmPose, string>;
   };
+  canvas: { width: number; height: number };
+  calibration: CharacterCalibration;
+  supportedLayers: CalibrationLayer[];
+  packageRoot: string;
+  manifest: Record<string, unknown>;
 }
 
 export type ResourceCollection = Record<string, string>;
 
 export interface ResourceRegistry {
   characters: Record<string, CharacterResource>;
+  packages: Record<string, CharacterResource>;
   backgrounds: ResourceCollection;
   expressions: ResourceCollection;
   eyes: ResourceCollection;
   mouths: ResourceCollection;
-  arms: ResourceCollection;
   effects: ResourceCollection;
   voices: ResourceCollection;
   bgm: ResourceCollection;

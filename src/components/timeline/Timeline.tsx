@@ -53,7 +53,7 @@ export function Timeline() {
             ))}
           </div>
           <div className="track-lane">
-            {characters.map((character) => <div className="timeline-clip character-clip" key={character.id}><span>{resourceRegistry.characters[character.characterId]?.name ?? character.characterId} · {character.expression}</span></div>)}
+            {characters.map((character) => <div className="timeline-clip character-clip" key={character.id}><span>{resourceRegistry.characters[character.characterId]?.name ?? character.characterId} · {character.body}</span></div>)}
           </div>
           <div className="track-lane">
             <div className="timeline-clip background-clip"><span>Placeholder background</span></div>
