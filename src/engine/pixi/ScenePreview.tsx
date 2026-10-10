@@ -3,6 +3,7 @@ import { Application, Container, Graphics } from "pixi.js";
 import { loadSubaruResource, resourceRegistry } from "../../data/resourceRegistry";
 import { useEditorStore } from "../../store/editorStore";
 import { CharacterRenderer } from "./CharacterRenderer";
+import { loadPreviews, previewRuntime } from "../../data/animationPreviews";
 
 export function ScenePreview() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -16,7 +17,16 @@ export function ScenePreview() {
   const calibrationLayer = useEditorStore((state) => state.calibrationLayer);
   const setCalibrationLayer = useEditorStore((state) => state.setCalibrationLayer);
   const updateCalibration = useEditorStore((state) => state.updateCalibration);
+  const updatePivot = useEditorStore((state) => state.updatePivot);
+  const previewId = useEditorStore((state) => state.previewId);
+  const previewPlaying = useEditorStore((state) => state.previewPlaying);
+  const previewLoop = useEditorStore((state) => state.previewLoop);
+  const previewElapsed = useEditorStore((state) => state.previewElapsed);
+  const setPreviewElapsed = useEditorStore((state) => state.setPreviewElapsed);
+  const setPreviewPlaying = useEditorStore((state) => state.setPreviewPlaying);
   const sceneSnapshot = useMemo(() => JSON.stringify(scene), [scene]);
+  const previewResource = scene?.characters.map((instance) => resourceRegistry.characters[instance.characterId]).find(Boolean);
+  const preview = previewResource && previewId ? loadPreviews(previewResource).find((item) => item.id === previewId) : undefined;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -32,7 +42,7 @@ export function ScenePreview() {
       if (disposed) { pixiApp.destroy(true); return; }
       appReady = true;
       host.appendChild(pixiApp.canvas);
-      await loadSubaruResource();
+      if (!Object.keys(resourceRegistry.characters).length) await loadSubaruResource();
       if (disposed) return;
       const renderer = new CharacterRenderer();
       const sceneLayer = new Container();
@@ -50,10 +60,19 @@ export function ScenePreview() {
         }
         for (const instance of scene?.characters ?? []) {
           const resource = resourceRegistry.characters[instance.characterId];
-          if (resource && instance.visible) {
-            const figure = await renderer.render(instance, resource, width, height, calibration, calibrationLayer, referenceMode, calibrationMode ? setCalibrationLayer : undefined, calibrationMode ? (layer, x, y) => {
-              if (layer === calibrationLayer) updateCalibration({ x: calibration.layers[layer].x + x / scaleFor(width, height, resource.canvas.width, resource.canvas.height), y: calibration.layers[layer].y + y / scaleFor(width, height, resource.canvas.width, resource.canvas.height) });
-            } : undefined);
+          const versionedResource = instance.packageVersion
+            ? resourceRegistry.packages[`${instance.characterId}@${instance.packageVersion}`]
+            : resource;
+          if (versionedResource && instance.visible) {
+            const runtime = preview ? previewRuntime(preview, previewElapsed) : undefined;
+            const figure = await renderer.render(instance, versionedResource, width, height, calibration, calibrationLayer, referenceMode, calibrationMode ? setCalibrationLayer : undefined, calibrationMode ? (layer, x, y) => {
+              if (layer === calibrationLayer) updateCalibration({ x: calibration.layers[layer].x + x / scaleFor(width, height, versionedResource.canvas.width, versionedResource.canvas.height), y: calibration.layers[layer].y + y / scaleFor(width, height, versionedResource.canvas.width, versionedResource.canvas.height) });
+            } : undefined, runtime, calibrationMode, (target, x, y) => {
+              updatePivot(target, {
+                x: (calibration.pivots?.[target]?.x ?? 0.5) + x,
+                y: (calibration.pivots?.[target]?.y ?? 0.5) + y,
+              });
+            });
             if (calibrationMode && showBoundingBox) {
               figure.addChild(new Graphics().rect(-512, -512, 1024, 1024).stroke({ color: 0xf19c9c, alpha: 0.5, width: 2 }));
             }
@@ -62,13 +81,29 @@ export function ScenePreview() {
         }
       };
       await redraw(host.clientWidth, host.clientHeight);
+      let frame = 0;
+      let last = performance.now();
+      const animate = (now: number) => {
+        if (disposed || !previewPlaying || !preview) return;
+        const next = previewElapsed + now - last;
+        last = now;
+        if (next >= preview.duration) {
+          if (previewLoop) setPreviewElapsed(next % preview.duration);
+          else {
+            setPreviewElapsed(preview.duration);
+            setPreviewPlaying(false);
+          }
+        } else setPreviewElapsed(next);
+        frame = requestAnimationFrame(animate);
+      };
+      if (previewPlaying) frame = requestAnimationFrame(animate);
       const observer = new ResizeObserver(([entry]) => { if (entry) void redraw(entry.contentRect.width, entry.contentRect.height); });
       observer.observe(host);
-      cleanupResize = () => observer.disconnect();
+      cleanupResize = () => { observer.disconnect(); cancelAnimationFrame(frame); };
     };
     void initialize().catch((error: unknown) => { if (!disposed) { console.error("PixiJS preview failed to initialize", error); host.textContent = "Preview could not be initialized."; } });
     return () => { disposed = true; cleanupResize?.(); if (app && appReady) app.destroy(true, { children: true }); };
-  }, [sceneSnapshot, scene, calibration, calibrationMode, calibrationLayer, referenceMode, showGrid, showGuides, showBoundingBox, setCalibrationLayer, updateCalibration]);
+  }, [sceneSnapshot, scene, calibration, calibrationMode, calibrationLayer, referenceMode, showGrid, showGuides, showBoundingBox, setCalibrationLayer, updateCalibration, updatePivot, preview, previewPlaying, previewLoop, previewElapsed, setPreviewElapsed, setPreviewPlaying]);
 
   return <div className="pixi-host" ref={hostRef} aria-label="PixiJS scene preview" />;
 }

@@ -4,8 +4,6 @@ type Manifest = Record<string, unknown> & {
   assets?: Record<string, Record<string, unknown>>;
   package_id?: string;
   version?: string;
-  packageId?: string;
-  packageVersion?: string;
 };
 
 const encoder = new TextEncoder();
@@ -69,17 +67,17 @@ function zipStore(files: { name: string; data: Uint8Array }[]): Blob {
   ], { type: "application/zip" });
 }
 
-function nextVersion(version: string): { number: number; manifest: string; calibration: string } {
-  const number = Math.floor(Number.parseFloat(version)) + 0.1;
-  const rounded = number.toFixed(1);
-  return { number, manifest: `${rounded}0`, calibration: rounded };
+function nextVersion(version: string): { number: number; packageVersion: string } {
+  const [majorText, minorText] = version.split(".");
+  const major = Number.parseInt(majorText ?? "0", 10);
+  const minor = Number.parseInt(minorText ?? "0", 10) + 1;
+  const number = major + minor / 10;
+  return { number, packageVersion: `${major}.${minor}.0` };
 }
 
 function calibrationJson(calibration: CharacterCalibration, version: string, canvas: { width: number; height: number }, layers: CalibrationLayer[]): Uint8Array {
   const packageLayers = Object.fromEntries(layers.map((layer) => {
-    const { opacity, ...transform } = calibration.layers[layer];
-    void opacity;
-    return [layer, transform];
+    return [layer, calibration.layers[layer]];
   }));
   return encoder.encode(`${JSON.stringify({
     schemaVersion: 1,
@@ -87,6 +85,7 @@ function calibrationJson(calibration: CharacterCalibration, version: string, can
     packageVersion: version,
     canvas,
     layers: packageLayers,
+    pivots: calibration.pivots,
   }, null, 2)}\n`);
 }
 
@@ -99,10 +98,20 @@ export async function exportPackageCalibration(resource: CharacterResource, cali
   const sourceManifest = resource.manifest as Manifest;
   const currentVersion = resource.packageVersion ?? "0.3.0";
   const next = nextVersion(currentVersion);
-  const packageId = `${calibration.characterId.toUpperCase()}_CHARACTER_v${next.calibration}`;
-  const directory = `${calibration.characterId}_v${next.calibration}/`;
-  const calibrationData = calibrationJson(calibration, next.calibration, resource.canvas, resource.supportedLayers);
-  const assets = sourceManifest.assets ?? {};
+  const packageId = `${calibration.characterId.toUpperCase()}_CHARACTER_v${next.packageVersion}`;
+  const directory = `${calibration.characterId}_v${next.packageVersion}/`;
+  const exportLayers = resource.assets.hands && !resource.supportedLayers.includes("hands")
+    ? [...resource.supportedLayers, "hands" as CalibrationLayer]
+    : resource.supportedLayers;
+  const calibrationData = calibrationJson(calibration, next.packageVersion, resource.canvas, exportLayers);
+  let assets = sourceManifest.assets;
+  if (!assets) {
+    const indexResponse = await fetch(`${resource.packageRoot.replace(/\/$/, "")}/resource-index.json`);
+    if (!indexResponse.ok) throw new Error("Package does not provide an explicit resource index for export.");
+    const index = await indexResponse.json() as { assets?: Record<string, Record<string, unknown>> };
+    assets = index.assets;
+  }
+  if (!assets) throw new Error("Package has no exportable asset index.");
   const files: { name: string; data: Uint8Array }[] = [];
   for (const path of Object.keys(assets)) {
     if (path === "calibration.json") continue;
@@ -110,12 +119,15 @@ export async function exportPackageCalibration(resource: CharacterResource, cali
     if (!response.ok) throw new Error(`Unable to copy package asset: ${path}`);
     files.push({ name: `${directory}${path}`, data: new Uint8Array(await response.arrayBuffer()) });
   }
+  const {
+    packageId: _packageId,
+    packageVersion: _packageVersion,
+    ...sourceManifestFields
+  } = sourceManifest as Manifest & { packageId?: unknown; packageVersion?: unknown };
   const manifest: Manifest = {
-    ...sourceManifest,
+    ...sourceManifestFields,
     package_id: packageId,
-    packageId,
-    version: `${next.calibration}.0`,
-    packageVersion: `${next.calibration}.0`,
+    version: next.packageVersion,
     assets: {
       ...assets,
       "calibration.json": { format: "JSON", sha256: await sha256(calibrationData) },
@@ -132,5 +144,5 @@ export async function exportPackageCalibration(resource: CharacterResource, cali
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
-  return { packageVersion: next.calibration, fileName };
+  return { packageVersion: next.packageVersion, fileName };
 }

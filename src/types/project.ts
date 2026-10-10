@@ -4,12 +4,19 @@ export interface Point {
 }
 
 export type Expression = "neutral" | "happy" | "angry" | "shocked" | "sad" | "confused" | "dead_inside";
-export type Eyes = "normal" | "closed" | "wide" | "angry" | "sad";
-export type Face = Eyes;
-export type Eyebrows = "normal" | "raised" | "angry" | "worried" | "sad";
-export type Mouth = "neutral" | "smile" | "open" | "shout" | "sad";
-export type BodyPose = "neutral" | "pointing" | "crossed_arms" | "facepalm" | "thumbs_up";
-export type CalibrationLayer = "body" | "head" | "face" | "hair" | "eyes" | "eyebrows" | "mouth";
+export type Eyes = string;
+export type Face = string;
+export type Eyebrows = string;
+export type Mouth = string;
+export type BodyPose = string;
+export type HandPose = string;
+export type CalibrationLayer = "body" | "head" | "face" | "hair" | "eyes" | "eyebrows" | "mouth" | "hands" | "leftArm" | "rightArm";
+export type PivotTarget = "headGroup" | "hands" | "leftArm" | "rightArm";
+
+export interface CalibrationPivot {
+  x: number;
+  y: number;
+}
 
 export interface CalibrationTransform {
   x: number;
@@ -24,6 +31,7 @@ export interface CharacterCalibration {
   characterId: string;
   packageVersion: string;
   layers: Record<CalibrationLayer, CalibrationTransform>;
+  pivots?: Partial<Record<PivotTarget, CalibrationPivot>>;
 }
 
 export interface Character {
@@ -43,6 +51,7 @@ export interface Character {
 export interface CharacterInstance {
   id: string;
   characterId: string;
+  packageVersion?: string;
   position: Point;
   scale: number;
   expression: Expression;
@@ -51,6 +60,9 @@ export interface CharacterInstance {
   eyebrows: Eyebrows;
   face?: Face;
   mouth: Mouth;
+  hands?: HandPose;
+  leftArm?: HandPose;
+  rightArm?: HandPose;
   visible: boolean;
   layer: number;
 }
@@ -86,12 +98,17 @@ export interface CharacterResource extends Character {
     eyes?: Record<Eyes, string>;
     eyebrows?: Record<Eyebrows, string>;
     mouth: Record<Mouth, string>;
+    hands?: Record<HandPose, string>;
+    leftArm?: Record<HandPose, string>;
+    rightArm?: Record<HandPose, string>;
   };
   canvas: { width: number; height: number };
   calibration: CharacterCalibration;
   supportedLayers: CalibrationLayer[];
   packageRoot: string;
   manifest: Record<string, unknown>;
+  source?: "bundled" | "installed";
+  preview?: string;
 }
 
 export type ResourceCollection = Record<string, string>;

@@ -1,0 +1,40 @@
+{
+  "package_id": "reze_character",
+  "version": "0.2.1",
+  "name": "Reze",
+  "display_name": "Reze",
+  "description": "Re:Anime Reze character package with independent left and right arm-hand layers.",
+  "canvas": {
+    "width": 1024,
+    "height": 1024,
+    "format": "RGBA"
+  },
+  "architecture": {
+    "body": "body/neutral.png",
+    "head": "head/base.png",
+    "face": "face/*.png",
+    "mouth": "mouths/",
+    "left_arm": "hands/left/",
+    "right_arm": "hands/right/"
+  },
+  "renderer": {
+    "layer_order": [
+      "body",
+      "headGroup",
+      "leftArm",
+      "rightArm"
+    ],
+    "headGroup": [
+      "head",
+      "face",
+      "mouth"
+    ]
+  },
+  "notes": [
+    "Left and right arm-hand poses are extracted individually from the supplied masked sprite sheet.",
+    "Touching two-arm gestures are preserved under hands/paired_reference/ because they cannot be honestly represented as independent layers without reconstructing artwork.",
+    "The package remains compatible with the Re:Anime state/pose compositor concept.",
+    "face/source_sheet.png preserves the original alpha-masked eye-expression sheet for reference.",
+    "Face expression PNGs are paired left/right eye tiles from the source sheet. Some asymmetrical states (such as wink) intentionally remain asymmetrical."
+  ]
+}

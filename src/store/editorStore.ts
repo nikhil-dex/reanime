@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import { initialProject } from "../data/sampleScene";
 import type { Project } from "../types/project";
-import type { CalibrationLayer, CalibrationTransform, CharacterCalibration } from "../types/project";
+import type { CalibrationLayer, CalibrationPivot, CalibrationTransform, CharacterCalibration, PivotTarget } from "../types/project";
 import { createDefaultCalibration } from "../data/characterCalibration";
 import { discoverCharacterResources } from "../data/resourceRegistry";
 import { resolveExpression } from "../data/characterExpressions";
+import { resourceRegistry } from "../data/resourceRegistry";
 
 interface EditorState {
   project: Project;
@@ -22,6 +23,11 @@ interface EditorState {
   showGrid: boolean;
   showBoundingBox: boolean;
   referenceMode: boolean;
+  previewId: string | null;
+  previewPlaying: boolean;
+  previewLoop: boolean;
+  previewElapsed: number;
+  previewRunAll: boolean;
   setPlaying: (isPlaying: boolean) => void;
   setPlayhead: (playhead: number) => void;
   updateProjectName: (name: string) => void;
@@ -31,12 +37,19 @@ interface EditorState {
   setCalibrationMode: (enabled: boolean) => void;
   setCalibrationLayer: (layer: CalibrationLayer) => void;
   updateCalibration: (updates: Partial<CalibrationTransform>) => void;
+  updatePivot: (target: PivotTarget, updates: Partial<CalibrationPivot>) => void;
+  resetPivot: (target: PivotTarget) => void;
   resetCalibrationLayer: () => void;
   resetAllCalibration: () => void;
   setCalibrationDisplay: (key: "showGuides" | "showGrid" | "showBoundingBox" | "referenceMode", value: boolean) => void;
   importCalibration: (data: unknown) => void;
   addCharacter: (characterId: string) => void;
-  updateCharacter: (updates: Partial<Pick<CharacterState, "characterId" | "expression" | "body" | "face" | "eyes" | "eyebrows" | "mouth" | "scale" | "position">>) => void;
+  updateCharacter: (updates: Partial<Pick<CharacterState, "characterId" | "expression" | "body" | "face" | "eyes" | "eyebrows" | "mouth" | "hands" | "leftArm" | "rightArm" | "scale" | "position">>) => void;
+  setPreview: (previewId: string | null) => void;
+  setPreviewPlaying: (playing: boolean) => void;
+  setPreviewLoop: (loop: boolean) => void;
+  setPreviewElapsed: (elapsed: number) => void;
+  setPreviewRunAll: (runAll: boolean) => void;
 }
 
 type CharacterState = Project["scenes"][number]["characters"][number];
@@ -57,6 +70,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   showGrid: true,
   showBoundingBox: true,
   referenceMode: false,
+  previewId: null,
+  previewPlaying: false,
+  previewLoop: false,
+  previewElapsed: 0,
+  previewRunAll: false,
   setPlaying: (isPlaying) => set({ isPlaying }),
   setPlayhead: (playhead) => set({ playhead }),
   updateProjectName: (name) =>
@@ -75,9 +93,19 @@ export const useEditorStore = create<EditorState>((set) => ({
     const active = resources.sort((a, b) => (b.packageVersion ?? "0").localeCompare(a.packageVersion ?? "0", undefined, { numeric: true }))[0];
     if (warnings.length) console.warn(...warnings);
     if (active) {
+      let currentCalibration = active.calibration;
+      try {
+        const stored = localStorage.getItem(`reanime-calibration-${active.id}@${active.packageVersion}`);
+        if (stored) {
+          const parsed = JSON.parse(stored) as CharacterCalibration;
+          if (parsed.characterId === active.id && parsed.packageVersion === active.packageVersion && parsed.layers) currentCalibration = parsed;
+        }
+      } catch {
+        console.warn(`Unable to restore saved calibration for ${active.id}@${active.packageVersion}.`);
+      }
       set((state) => ({
-        calibration: active.calibration,
         calibrationBaseline: active.calibration,
+        calibration: currentCalibration,
         calibrationLayer: active.supportedLayers.includes(state.calibrationLayer) ? state.calibrationLayer : (active.supportedLayers[0] ?? "head"),
         resourcesReady: true,
         resourceRevision: state.resourceRevision + 1,
@@ -96,6 +124,29 @@ export const useEditorStore = create<EditorState>((set) => ({
         },
       },
     })),
+  updatePivot: (target, updates) =>
+    set((state) => ({
+      calibration: {
+        ...state.calibration,
+        pivots: {
+          ...state.calibration.pivots,
+          [target]: {
+            x: Math.min(1, Math.max(0, updates.x ?? state.calibration.pivots?.[target]?.x ?? 0.5)),
+            y: Math.min(1, Math.max(0, updates.y ?? state.calibration.pivots?.[target]?.y ?? 0.5)),
+          },
+        },
+      },
+    })),
+  resetPivot: (target) =>
+    set((state) => ({
+      calibration: {
+        ...state.calibration,
+        pivots: {
+          ...state.calibration.pivots,
+          [target]: { x: 0.5, y: 0.5 },
+        },
+      },
+    })),
   resetCalibrationLayer: () =>
     set((state) => ({
       calibration: {
@@ -104,10 +155,28 @@ export const useEditorStore = create<EditorState>((set) => ({
           ...state.calibration.layers,
           [state.calibrationLayer]: state.calibrationBaseline.layers[state.calibrationLayer],
         },
+        pivots: ["head", "hands", "leftArm", "rightArm"].includes(state.calibrationLayer)
+          ? (() => {
+            const target: PivotTarget = state.calibrationLayer === "head" ? "headGroup" : state.calibrationLayer as PivotTarget;
+            return { ...state.calibration.pivots, [target]: state.calibrationBaseline.pivots?.[target] ?? { x: 0.5, y: 0.5 } };
+          })()
+          : state.calibration.pivots,
       },
     })),
-  resetAllCalibration: () => set((state) => ({ calibration: state.calibrationBaseline })),
+  resetAllCalibration: () => set((state) => ({
+    calibration: {
+      ...state.calibrationBaseline,
+      pivots: {
+        ...state.calibrationBaseline.pivots,
+      },
+    },
+  })),
   setCalibrationDisplay: (key, value) => set({ [key]: value }),
+  setPreview: (previewId) => set({ previewId, previewPlaying: false, previewElapsed: 0 }),
+  setPreviewPlaying: (previewPlaying) => set({ previewPlaying }),
+  setPreviewLoop: (previewLoop) => set({ previewLoop }),
+  setPreviewElapsed: (previewElapsed) => set({ previewElapsed }),
+  setPreviewRunAll: (previewRunAll) => set({ previewRunAll }),
   importCalibration: (data) => {
     if (!data || typeof data !== "object") throw new Error("Calibration import must be a JSON object.");
     const candidate = data as Partial<CharacterCalibration> & { schemaVersion?: number };
@@ -131,6 +200,7 @@ export const useEditorStore = create<EditorState>((set) => ({
       const character: CharacterState = {
         id,
         characterId,
+        packageVersion: resourceRegistry.characters[characterId]?.packageVersion,
         position: { x: 0.5, y: 0.55 },
         scale: 1,
         expression: "neutral",

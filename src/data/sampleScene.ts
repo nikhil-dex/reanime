@@ -9,6 +9,7 @@ export const sampleScene: Scene = {
     {
       id: "kai-instance",
       characterId: "subaru",
+      packageVersion: "0.4.1",
       position: { x: 0.5, y: 0.55 },
       scale: 1,
       expression: "neutral",

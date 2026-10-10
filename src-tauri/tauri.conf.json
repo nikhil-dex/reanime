@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Re:Anime",
+  "productName": "Re-Anime",
   "version": "0.1.0",
   "identifier": "com.reanime.studio",
   "build": {
@@ -21,7 +21,11 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPDATA/characters/**"]
+      }
     }
   },
   "bundle": {

@@ -1,0 +1,205 @@
+{
+  "assets": {
+    "body/neutral.png": {
+      "format": "PNG"
+    },
+    "expressions/wink.png": {
+      "format": "PNG"
+    },
+    "face/angry.png": {
+      "format": "PNG"
+    },
+    "face/angry_row2.png": {
+      "format": "PNG"
+    },
+    "face/closed.png": {
+      "format": "PNG"
+    },
+    "face/closed_blush.png": {
+      "format": "PNG"
+    },
+    "face/half_closed.png": {
+      "format": "PNG"
+    },
+    "face/half_closed_blush.png": {
+      "format": "PNG"
+    },
+    "face/normal.png": {
+      "format": "PNG"
+    },
+    "face/serious.png": {
+      "format": "PNG"
+    },
+    "face/side_glance.png": {
+      "format": "PNG"
+    },
+    "face/sleepy.png": {
+      "format": "PNG"
+    },
+    "face/source_sheet.png": {
+      "format": "PNG"
+    },
+    "face/surprised.png": {
+      "format": "PNG"
+    },
+    "face/wink.png": {
+      "format": "PNG"
+    },
+    "hands/left/01_open_palm.png": {
+      "format": "PNG"
+    },
+    "hands/left/02_fist.png": {
+      "format": "PNG"
+    },
+    "hands/left/03_peace.png": {
+      "format": "PNG"
+    },
+    "hands/left/04_thumbs_up.png": {
+      "format": "PNG"
+    },
+    "hands/left/05_fist_high.png": {
+      "format": "PNG"
+    },
+    "hands/left/06_open_palm_2.png": {
+      "format": "PNG"
+    },
+    "hands/left/07_ok.png": {
+      "format": "PNG"
+    },
+    "hands/left/08_fist_2.png": {
+      "format": "PNG"
+    },
+    "hands/left/09_claw.png": {
+      "format": "PNG"
+    },
+    "hands/left/10_thumbs_up_2.png": {
+      "format": "PNG"
+    },
+    "hands/left/11_palms_up.png": {
+      "format": "PNG"
+    },
+    "hands/left/12_pointing.png": {
+      "format": "PNG"
+    },
+    "hands/left/13_fists.png": {
+      "format": "PNG"
+    },
+    "hands/left/14_palms_out.png": {
+      "format": "PNG"
+    },
+    "hands/left/15_index_up.png": {
+      "format": "PNG"
+    },
+    "hands/left/16_crossed_lower.png": {
+      "format": "PNG"
+    },
+    "hands/left/17_fists_up.png": {
+      "format": "PNG"
+    },
+    "hands/left/neutral.png": {
+      "format": "PNG"
+    },
+    "hands/paired_reference/arms_crossed_lower.png": {
+      "format": "PNG"
+    },
+    "hands/paired_reference/crossed_arms.png": {
+      "format": "PNG"
+    },
+    "hands/paired_reference/heart_large.png": {
+      "format": "PNG"
+    },
+    "hands/paired_reference/heart_upper.png": {
+      "format": "PNG"
+    },
+    "hands/paired_reference/prayer.png": {
+      "format": "PNG"
+    },
+    "hands/right/01_open_palm.png": {
+      "format": "PNG"
+    },
+    "hands/right/02_fist.png": {
+      "format": "PNG"
+    },
+    "hands/right/03_peace.png": {
+      "format": "PNG"
+    },
+    "hands/right/04_thumbs_up.png": {
+      "format": "PNG"
+    },
+    "hands/right/05_fist_high.png": {
+      "format": "PNG"
+    },
+    "hands/right/06_open_palm_2.png": {
+      "format": "PNG"
+    },
+    "hands/right/07_ok.png": {
+      "format": "PNG"
+    },
+    "hands/right/08_fist_2.png": {
+      "format": "PNG"
+    },
+    "hands/right/09_claw.png": {
+      "format": "PNG"
+    },
+    "hands/right/10_thumbs_up_2.png": {
+      "format": "PNG"
+    },
+    "hands/right/11_palms_up.png": {
+      "format": "PNG"
+    },
+    "hands/right/12_pointing.png": {
+      "format": "PNG"
+    },
+    "hands/right/13_fists.png": {
+      "format": "PNG"
+    },
+    "hands/right/14_palms_out.png": {
+      "format": "PNG"
+    },
+    "hands/right/15_index_up.png": {
+      "format": "PNG"
+    },
+    "hands/right/16_crossed_lower.png": {
+      "format": "PNG"
+    },
+    "hands/right/17_fists_up.png": {
+      "format": "PNG"
+    },
+    "hands/right/neutral.png": {
+      "format": "PNG"
+    },
+    "head/base.png": {
+      "format": "PNG"
+    },
+    "master/reze_master.png": {
+      "format": "PNG"
+    },
+    "mouths/laugh.png": {
+      "format": "PNG"
+    },
+    "mouths/neutral.png": {
+      "format": "PNG"
+    },
+    "mouths/open.png": {
+      "format": "PNG"
+    },
+    "mouths/round.png": {
+      "format": "PNG"
+    },
+    "mouths/sad.png": {
+      "format": "PNG"
+    },
+    "mouths/shout.png": {
+      "format": "PNG"
+    },
+    "mouths/small.png": {
+      "format": "PNG"
+    },
+    "mouths/smile.png": {
+      "format": "PNG"
+    },
+    "mouths/tongue.png": {
+      "format": "PNG"
+    }
+  }
+}
