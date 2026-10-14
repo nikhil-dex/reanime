@@ -20,6 +20,6 @@
 - Mouth: `neutral`
 
 ## Important
-All PNGs have been uniformly resized from the supplied 1254×1254 canvas to 1024×1024 to match the current Re:Anime production canvas. The artwork and transparent placement were preserved by uniform resampling; no layer was individually repositioned.
+All referenced PNGs use the canonical 1254×1254 transparent RGBA canvas declared in `manifest.json`. The artwork files are preserved at their supplied dimensions; no layer was resized or individually repositioned.
 
 Calibration is a neutral starting point, not a claim that all layer pivots have been visually validated inside the running Re:Anime renderer.

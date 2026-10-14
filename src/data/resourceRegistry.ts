@@ -48,9 +48,9 @@ function validateManifest(manifest: CanonicalCharacterManifest): void {
     || typeof manifest.default_state !== "object") {
     throw new Error("Character package must define canonical states and default_state maps.");
   }
-  if (!manifest.canvas || manifest.canvas.width < 1 || manifest.canvas.height < 1
+  if (!manifest.canvas || manifest.canvas.width !== 1254 || manifest.canvas.height !== 1254
     || manifest.canvas.color_space !== "RGBA" || manifest.canvas.background !== "transparent") {
-    throw new Error("Character package canvas must be positive-size transparent RGBA.");
+    throw new Error("Character package canvas must be exactly 1254x1254 transparent RGBA.");
   }
   const expectedLayers = ["body", "headGroup", "head", "face", "mouth"];
   if (!Array.isArray(manifest.rig?.layers)) {
@@ -117,11 +117,18 @@ async function validatePng(root: string, path: string): Promise<void> {
   }
   const response = await fetch(packageUrl(root, path));
   if (!response.ok) throw new Error(`Missing character asset '${path}'.`);
-  const header = new Uint8Array(await response.arrayBuffer()).subarray(0, 8);
+  const bytes = new Uint8Array(await response.arrayBuffer());
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-  if (header.length !== signature.length || !signature.every((value, index) => header[index] === value)) {
+  if (bytes.length < 26
+    || !signature.every((value, index) => bytes[index] === value)
+    || String.fromCharCode(...bytes.subarray(12, 16)) !== "IHDR") {
     throw new Error(`Character asset '${path}' is not a readable PNG.`);
   }
+  const header = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (header.getUint32(16, false) !== 1254 || header.getUint32(20, false) !== 1254) {
+    throw new Error(`Character asset '${path}' must be exactly 1254x1254 to match the canonical canvas.`);
+  }
+  if (bytes[25] !== 6) throw new Error(`Character asset '${path}' must use RGBA color to preserve transparency.`);
 }
 
 function calibrationFromManifest(

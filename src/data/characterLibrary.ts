@@ -40,6 +40,8 @@ export async function removeCharacterPackage(characterId: string, version: strin
 }
 
 export function assetUrl(path: string): string {
-  const filesystemPath = path.startsWith("/Users/") || path.startsWith("/home/") || /^[A-Za-z]:[\\/]/.test(path);
-  return tauriAvailable() && filesystemPath ? convertFileSrc(path) : path;
+  const windowsPath = /^[A-Za-z]:[\\/]/.test(path);
+  const normalizedPath = windowsPath ? path.replace(/\//g, "\\") : path;
+  const filesystemPath = path.startsWith("/Users/") || path.startsWith("/home/") || windowsPath;
+  return tauriAvailable() && filesystemPath ? convertFileSrc(normalizedPath) : normalizedPath;
 }

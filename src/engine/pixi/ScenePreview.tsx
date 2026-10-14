@@ -84,7 +84,12 @@ export function ScenePreview() {
             });
             if (disposed || !pixiApp.renderer) return;
             if (calibrationMode && showBoundingBox) {
-              figure.addChild(new Graphics().rect(-512, -512, 1024, 1024).stroke({ color: 0xf19c9c, alpha: 0.5, width: 2 }));
+              figure.addChild(new Graphics().rect(
+                -versionedResource.canvas.width / 2,
+                -versionedResource.canvas.height / 2,
+                versionedResource.canvas.width,
+                versionedResource.canvas.height,
+              ).stroke({ color: 0xf19c9c, alpha: 0.5, width: 2 }));
             }
             sceneLayer.addChild(figure);
           }

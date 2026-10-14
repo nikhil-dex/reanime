@@ -7,8 +7,8 @@
   "description": "Layered Re:Anime character package with body pose states, combined eye-and-eyebrow face states, and mouth states.",
   "author": "User-edited assets",
   "canvas": {
-    "width": 1024,
-    "height": 1024,
+    "width": 1254,
+    "height": 1254,
     "color_space": "RGBA",
     "background": "transparent"
   },

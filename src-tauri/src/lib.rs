@@ -120,18 +120,15 @@ fn validate_manifest(manifest: &Value) -> PackageValidation {
     }
     let canvas = manifest.get("canvas");
     if !canvas.is_some_and(|value| {
-        value
-            .get("width")
-            .and_then(Value::as_u64)
-            .is_some_and(|width| width > 0)
-            && value
-                .get("height")
-                .and_then(Value::as_u64)
-                .is_some_and(|height| height > 0)
+        value.get("width").and_then(Value::as_u64) == Some(1254)
+            && value.get("height").and_then(Value::as_u64) == Some(1254)
             && value.get("color_space").and_then(Value::as_str) == Some("RGBA")
             && value.get("background").and_then(Value::as_str) == Some("transparent")
     }) {
-        errors.push("canvas must define positive width/height, color_space 'RGBA', and background 'transparent'".into());
+        errors.push(
+            "canvas must be exactly 1254x1254 with color_space 'RGBA' and background 'transparent'"
+                .into(),
+        );
     }
     if let Some(fields) = canvas.and_then(Value::as_object) {
         for field in fields.keys().filter(|field| {
@@ -457,10 +454,28 @@ fn validate_asset_references(package_root: &Path, references: &[String]) -> Resu
         let mut reader = decoder
             .read_info()
             .map_err(|error| format!("asset '{asset}' is not a readable PNG: {error}"))?;
+        if reader.info().width != 1254 || reader.info().height != 1254 {
+            return Err(format!(
+                "asset '{asset}' must be exactly 1254x1254 to match the canonical canvas"
+            ));
+        }
+        if reader.info().color_type != png::ColorType::Rgba {
+            return Err(format!(
+                "asset '{asset}' must use RGBA color to preserve transparency"
+            ));
+        }
         let mut buffer = vec![0; reader.output_buffer_size()];
-        reader
+        let frame = reader
             .next_frame(&mut buffer)
             .map_err(|error| format!("asset '{asset}' has invalid PNG image data: {error}"))?;
+        if !buffer[..frame.buffer_size()]
+            .chunks_exact(4)
+            .any(|pixel| pixel[3] == 0)
+        {
+            return Err(format!(
+                "asset '{asset}' must contain transparent pixels on its canvas"
+            ));
+        }
     }
     Ok(())
 }
@@ -503,6 +518,8 @@ fn validate_calibration(
     let canvas_height = canvas.get("height").and_then(Value::as_u64);
     let canvas_matches = calibration_canvas.is_some_and(|calibration_canvas| {
         calibration_canvas.len() == 2
+            && calibration_canvas.get("width").and_then(Value::as_u64) == Some(1254)
+            && calibration_canvas.get("height").and_then(Value::as_u64) == Some(1254)
             && calibration_canvas.get("width").and_then(Value::as_u64) == canvas_width
             && calibration_canvas.get("height").and_then(Value::as_u64) == canvas_height
     });
@@ -603,6 +620,10 @@ fn package_from_manifest(path: &Path) -> Result<CharacterPackage, String> {
     }
     let package_id = validation.package_id.unwrap();
     let version = validation.version.unwrap();
+    let canvas = manifest
+        .get("canvas")
+        .cloned()
+        .ok_or("canonical manifest is missing canvas")?;
     let references: Vec<String> = manifest
         .get("assets")
         .and_then(Value::as_object)
@@ -611,8 +632,6 @@ fn package_from_manifest(path: &Path) -> Result<CharacterPackage, String> {
         .cloned()
         .collect();
     validate_asset_references(path, &references)?;
-    let canvas = manifest.get("canvas").cloned();
-    let canvas = canvas.ok_or("canonical manifest is missing canvas")?;
     validate_calibration(path, &package_id, &version, &canvas)?;
     let character_id = package_id.clone();
     let display_name = manifest
@@ -1062,6 +1081,8 @@ mod tests {
     #[test]
     fn actual_reze_manifest_uses_layer_ids_as_metadata_and_validates_asset_paths() {
         let manifest: Value = serde_json::from_str(REZE_MANIFEST).unwrap();
+        assert_eq!(manifest["canvas"]["width"], 1254);
+        assert_eq!(manifest["canvas"]["height"], 1254);
         assert!(validate_manifest(&manifest).valid);
         assert!(manifest["rig"]["layers"]
             .as_array()
@@ -1074,6 +1095,8 @@ mod tests {
 
         let package_root = create_reze_package();
         let package = package_from_manifest(package_root.path()).unwrap();
+        assert_eq!(package.canvas.as_ref().unwrap()["width"], 1254);
+        assert_eq!(package.canvas.as_ref().unwrap()["height"], 1254);
         assert_eq!(package.body_pose_count, 10);
         assert_eq!(package.face_variant_count, 13);
 
@@ -1130,6 +1153,10 @@ mod tests {
 
         let mut manifest: Value = serde_json::from_str(REZE_MANIFEST).unwrap();
         manifest["schema_version"] = Value::String("0.2".into());
+        assert!(!validate_manifest(&manifest).valid);
+
+        let mut manifest: Value = serde_json::from_str(REZE_MANIFEST).unwrap();
+        manifest["canvas"]["width"] = Value::from(1024);
         assert!(!validate_manifest(&manifest).valid);
     }
 

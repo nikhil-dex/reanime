@@ -24,7 +24,7 @@ Additional body poses, face expressions, and mouth states may be included. Every
 
 `schema_version` is `1.0`. A package has one stable `package_id` and a numeric `MAJOR.MINOR.PATCH` version. The canvas is positive-size, transparent RGBA. `name` and `display_name` are user-facing metadata; neither is an identifier.
 
-The required groups are:
+The canonical canvas is exactly **1254 × 1254 pixels**, with transparent RGBA color. Every PNG uses that same 1254 × 1254 canvas. The required groups are:
 
 - `rig.layers`: exactly `body`, `headGroup`, `head`, `face`, and `mouth`, in that order. The head group contains the other three head layers. Face PNGs combine eyes and eyebrows.
 - `states.body`, `states.face`, and `states.mouth`: non-empty maps from stable state IDs to PNG paths. State IDs contain letters, numbers, `_`, or `-`. The head is one fixed faceless head-and-hair PNG referenced by the `head` rig layer.
@@ -40,8 +40,8 @@ The following compact example is structurally complete:
   "version": "1.0.0",
   "name": "Sample Character",
   "canvas": {
-    "width": 1024,
-    "height": 1024,
+    "width": 1254,
+    "height": 1254,
     "color_space": "RGBA",
     "background": "transparent"
   },
@@ -84,7 +84,8 @@ The following compact example is structurally complete:
 - `head/head.png` is one faceless head-and-hair composition.
 - Each face file contains a complete eyes-and-eyebrows expression, but not the head, hair, or mouth.
 - Mouth files contain mouth artwork only; mouth animation selects among the declared mouth states.
-- All images use the declared transparent RGBA canvas and aligned canvas coordinates so state changes do not shift the artwork.
+- Every image must be readable RGBA PNG with transparent pixels and must be 1254×1254 pixels.
+- Keep state images aligned within their shared canvas so state changes do not shift the artwork. Calibration offsets use canvas pixels.
 - Rendering is deterministic: body, head, face, then mouth. Calibration applies per layer, with a head-group transform around its normalized pivot.
 - Optional overlays, skeletal animation, independent arms/hands, and external rig formats are not supported.
 
@@ -97,7 +98,7 @@ The following compact example is structurally complete:
   "schema_version": "1.0",
   "package_id": "sample_character",
   "version": "1.0.0",
-  "canvas": { "width": 1024, "height": 1024 },
+  "canvas": { "width": 1254, "height": 1254 },
   "layers": {
     "body": { "x": 0, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0, "opacity": 1 },
     "headGroup": {
