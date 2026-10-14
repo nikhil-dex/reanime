@@ -4,14 +4,11 @@ export interface Point {
 }
 
 export type Expression = "neutral" | "happy" | "angry" | "shocked" | "sad" | "confused" | "dead_inside";
-export type Eyes = string;
 export type Face = string;
-export type Eyebrows = string;
 export type Mouth = string;
 export type BodyPose = string;
-export type HandPose = string;
-export type CalibrationLayer = "body" | "head" | "face" | "hair" | "eyes" | "eyebrows" | "mouth" | "hands" | "leftArm" | "rightArm";
-export type PivotTarget = "headGroup" | "hands" | "leftArm" | "rightArm";
+export type CalibrationLayer = "body" | "headGroup" | "head" | "face" | "mouth";
+export type PivotTarget = "headGroup";
 
 export interface CalibrationPivot {
   x: number;
@@ -37,15 +34,7 @@ export interface CharacterCalibration {
 export interface Character {
   id: string;
   name: string;
-  body: string;
-  head: string;
-  hair?: string;
-  eyes: string;
-  eyebrows: string;
-  face?: string;
-  mouth: string;
   packageVersion?: string;
-  expression: string;
 }
 
 export interface CharacterInstance {
@@ -56,13 +45,13 @@ export interface CharacterInstance {
   scale: number;
   expression: Expression;
   body: BodyPose;
-  eyes: Eyes;
-  eyebrows: Eyebrows;
-  face?: Face;
+  face: Face;
   mouth: Mouth;
-  hands?: HandPose;
-  leftArm?: HandPose;
-  rightArm?: HandPose;
+  eyes?: string;
+  eyebrows?: string;
+  hands?: string;
+  leftArm?: string;
+  rightArm?: string;
   visible: boolean;
   layer: number;
 }
@@ -93,22 +82,41 @@ export interface CharacterResource extends Character {
   assets: {
     body: Record<BodyPose, string>;
     head: string;
-    hair?: string;
-    face?: Record<Face, string>;
-    eyes?: Record<Eyes, string>;
-    eyebrows?: Record<Eyebrows, string>;
+    face: Record<Face, string>;
     mouth: Record<Mouth, string>;
-    hands?: Record<HandPose, string>;
-    leftArm?: Record<HandPose, string>;
-    rightArm?: Record<HandPose, string>;
   };
+  defaults: { body: BodyPose; face: Face; mouth: Mouth };
   canvas: { width: number; height: number };
   calibration: CharacterCalibration;
   supportedLayers: CalibrationLayer[];
   packageRoot: string;
-  manifest: Record<string, unknown>;
+  manifest: CanonicalCharacterManifest;
   source?: "bundled" | "installed";
   preview?: string;
+}
+
+export interface CanonicalCharacterManifest {
+  schema_version: "1.0";
+  package_id: string;
+  version: string;
+  name?: string;
+  display_name?: string;
+  description?: string;
+  author?: string;
+  canvas: { width: number; height: number; color_space: "RGBA"; background: "transparent" };
+  rig: {
+    type: "state_compositor";
+    layers: Array<{ id: string; type: string; required: true; assets?: string[]; children?: string[]; composition?: string }>;
+    notes?: string[];
+  };
+  states: {
+    body: Record<BodyPose, string>;
+    face: Record<Face, string>;
+    mouth: Record<Mouth, string>;
+  };
+  default_state: { body: BodyPose; face: Face; mouth: Mouth };
+  assets: Record<string, { path: string; layer: string; state: string; type: "png" }>;
+  counts?: Record<string, number>;
 }
 
 export type ResourceCollection = Record<string, string>;

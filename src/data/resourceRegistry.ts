@@ -3,45 +3,15 @@ import type {
   CalibrationLayer,
   CharacterCalibration,
   CharacterResource,
+  CanonicalCharacterManifest,
   Face,
-  Eyebrows,
-  Eyes,
   Mouth,
-  HandPose,
-  ResourceCollection,
   ResourceRegistry,
 } from "../types/project";
-import { calibrationLayers, createDefaultCalibration } from "./characterCalibration";
+import { createDefaultCalibration } from "./characterCalibration";
 import { assetUrl, listInstalledCharacterPackages } from "./characterLibrary";
 
-type ManifestAsset = { sha256?: string; size?: [number, number]; format?: string };
-type RawManifest = {
-  schemaVersion?: number;
-  character?: string;
-  package_id?: string;
-  packageId?: string;
-  version?: string;
-  packageVersion?: string;
-  canvas?: string | { width: number; height: number };
-  renderer_architecture?: unknown[];
-  pivots?: CharacterCalibration["pivots"];
-  assets?: Record<string, ManifestAsset>;
-  architecture?: Record<string, unknown>;
-  renderer?: { layer_order?: string[]; headGroup?: string[] };
-  layers?: Partial<CharacterCalibration["layers"]>;
-};
 type PackageIndex = { packages: { path: string }[] };
-type CalibrationFile = {
-  schemaVersion?: number;
-  character?: string;
-  characterId?: string;
-  package_id?: string;
-  version?: string;
-  packageVersion?: string;
-  layers?: Partial<CharacterCalibration["layers"] & Record<string, { transform?: Partial<CharacterCalibration["layers"][CalibrationLayer]>; pivot?: { x?: number; y?: number } }>> & { headGroup?: { transform?: Partial<CharacterCalibration["layers"]["head"]>; pivot?: { x?: number; y?: number } } };
-  pivots?: CharacterCalibration["pivots"];
-};
-type ResourceIndex = { assets: Record<string, ManifestAsset> };
 
 export const resourceRegistry: ResourceRegistry = {
   characters: {},
@@ -56,56 +26,12 @@ export const resourceRegistry: ResourceRegistry = {
   sfx: {},
 };
 
-const bodyPoses: BodyPose[] = ["neutral", "pointing", "crossed_arms", "facepalm", "thumbs_up"];
-const eyes: Eyes[] = ["normal", "closed", "wide", "angry", "sad"];
-const eyebrows: Eyebrows[] = ["normal", "raised", "angry", "worried", "sad"];
-const mouths: Mouth[] = ["neutral", "smile", "open", "shout", "sad"];
-
-function packageUrl(root: string, relativePath: string): string {
-  return `${root.replace(/\/$/, "")}/${relativePath}`;
-}
-
-function parseCanvas(canvas: RawManifest["canvas"]): { width: number; height: number } | undefined {
-  if (typeof canvas === "object" && canvas) return canvas;
-  if (typeof canvas === "string") {
-    const [width, height] = canvas.split("x").map(Number);
-    if (width && height) return { width, height };
-  }
-  return undefined;
-}
-
-function assetPath(root: string, folder: string, name: string): string {
-  return packageUrl(root, `${folder}/${name}.png`);
-}
-
-function normalizeCharacterId(value: string | undefined, packageId: string | undefined): string | undefined {
-  if (value && /^[a-z0-9_-]+$/i.test(value) && !value.includes(" ")) return value.toLowerCase();
-  const match = packageId?.match(/^([A-Z0-9]+)_CHARACTER/i);
-  return match?.[1]?.toLowerCase();
-}
-
-function assetMap<T extends string>(root: string, manifestAssets: Record<string, ManifestAsset>, folder: string, names: readonly T[]): Partial<Record<T, string>> {
-  const mapped: Partial<Record<T, string>> = {};
-  for (const name of names) {
-    if (`${folder}/${name}.png` in manifestAssets) mapped[name] = assetPath(root, folder, name);
-  }
-
-  return mapped;
-}
-
-function discoveredAssetMap(root: string, manifestAssets: Record<string, ManifestAsset>, folder: string): Record<string, string> | undefined {
-  const prefix = `${folder}/`;
-  const entries = Object.keys(manifestAssets)
-    .filter((path) => path.startsWith(prefix) && path.endsWith(".png"))
-    .map((path) => [path.slice(prefix.length, -".png".length), packageUrl(root, path)] as const);
-  return entries.length ? Object.fromEntries(entries) : undefined;
-}
-
-function cleanAssetMap(root: string, manifestAssets: Record<string, ManifestAsset>, folder: string): Record<string, string> | undefined {
-  const entries = Object.keys(manifestAssets)
-    .filter((path) => path.startsWith(`${folder}/`) && path.endsWith(".png"))
-    .map((path) => [path.slice(folder.length + 1, -4), packageUrl(root, path)] as const);
-  return entries.length ? Object.fromEntries(entries) : undefined;
+function packageUrl(root: string, path: string): string {
+  const normalizedRoot = root.replace(/[\\/]+$/, "");
+  const joined = `${normalizedRoot}/${path}`;
+  return /^[A-Za-z]:[\\/]|^\/(?:Users|home)\//.test(root)
+    ? assetUrl(joined)
+    : joined;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -114,169 +40,193 @@ async function fetchJson<T>(url: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function clearRegistry(): void {
-  for (const collection of [resourceRegistry.characters, resourceRegistry.packages]) {
-    for (const key of Object.keys(collection)) delete collection[key];
+function validateManifest(manifest: CanonicalCharacterManifest): void {
+  if (manifest.schema_version !== "1.0" || manifest.rig?.type !== "state_compositor") {
+    throw new Error("Unsupported character package; expected schema 1.0 layered PNG state compositor.");
+  }
+  if (!manifest.states || typeof manifest.states !== "object" || !manifest.default_state
+    || typeof manifest.default_state !== "object") {
+    throw new Error("Character package must define canonical states and default_state maps.");
+  }
+  if (!manifest.canvas || manifest.canvas.width < 1 || manifest.canvas.height < 1
+    || manifest.canvas.color_space !== "RGBA" || manifest.canvas.background !== "transparent") {
+    throw new Error("Character package canvas must be positive-size transparent RGBA.");
+  }
+  const expectedLayers = ["body", "headGroup", "head", "face", "mouth"];
+  if (!Array.isArray(manifest.rig?.layers)) {
+    throw new Error("Character package must define the canonical rig.layers array.");
+  }
+  if (manifest.rig.layers.map((layer) => layer.id).join(",") !== expectedLayers.join(",")) {
+    throw new Error("Character package rig must use the canonical body/headGroup/head/face/mouth compositor layers.");
+  }
+  const expectedTypes: Record<string, string> = {
+    body: "pose_state",
+    headGroup: "container",
+    head: "base_art",
+    face: "expression_state",
+    mouth: "mouth_state",
+  };
+  for (const layer of manifest.rig.layers) {
+    if (layer.type !== expectedTypes[layer.id] || layer.required !== true) {
+      throw new Error(`Character package rig layer '${layer.id}' has an unsupported type or is not required.`);
+    }
+  }
+  const headGroup = manifest.rig.layers.find((layer) => layer.id === "headGroup");
+  if (headGroup?.children?.join(",") !== "head,face,mouth") {
+    throw new Error("Character package headGroup must contain head, face, and mouth.");
+  }
+  if (manifest.rig.layers.find((layer) => layer.id === "face")?.composition !== "eyes_and_eyebrows_combined") {
+    throw new Error("Character package face assets must combine eyes and eyebrows.");
+  }
+  for (const group of ["body", "face", "mouth"] as const) {
+    if (!manifest.states[group] || typeof manifest.states[group] !== "object" || Array.isArray(manifest.states[group])
+      || Object.keys(manifest.states[group]).length === 0) {
+      throw new Error(`Character package is missing states.${group}.`);
+    }
+    const layerPaths = manifest.rig.layers.find((layer) => layer.id === group)?.assets;
+    const statePaths = Object.values(manifest.states[group]);
+    if (!layerPaths || [...layerPaths].sort().join("\n") !== [...statePaths].sort().join("\n")) {
+      throw new Error(`Character package rig layer '${group}' assets must match states.${group}.`);
+    }
+  }
+  if (!manifest.assets || typeof manifest.assets !== "object" || Array.isArray(manifest.assets)) {
+    throw new Error("Character package assets must be a flat PNG asset registry.");
+  }
+  for (const group of ["body", "face", "mouth"] as const) {
+    for (const [state, path] of Object.entries(manifest.states[group])) {
+      const prefix = `${group}/`;
+      if (!/^[A-Za-z0-9_-]+$/.test(state) || typeof path !== "string"
+        || !path.startsWith(prefix) || !path.toLowerCase().endsWith(".png")) {
+        throw new Error(`Invalid canonical ${group} state or PNG path: ${state}`);
+      }
+    }
+  }
+  if (Object.keys(manifest.default_state).length !== 3
+    || (["body", "face", "mouth"] as const).some((group) => !Object.hasOwn(manifest.states[group], manifest.default_state[group]))) {
+    throw new Error("Character package defaults must select one declared body, face, and mouth state.");
+  }
+  const headAssets = manifest.rig.layers.find((layer) => layer.id === "head")?.assets;
+  if (!headAssets || headAssets.length !== 1 || !headAssets[0].startsWith("head/") || !headAssets[0].toLowerCase().endsWith(".png")) {
+    throw new Error("Character package head layer must reference exactly one PNG under head/.");
   }
 }
 
-async function fetchOptionalJson<T>(url: string): Promise<T | undefined> {
-  const response = await fetch(url);
-  if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) return undefined;
-  return response.json() as Promise<T>;
-}
-
-async function validateAsset(root: string, path: string): Promise<void> {
+async function validatePng(root: string, path: string): Promise<void> {
+  if (path.startsWith("/") || path.includes("\\") || path.split("/").some((part) => part === ".." || part === ".")) {
+    throw new Error(`Unsafe character asset path: ${path}`);
+  }
   const response = await fetch(packageUrl(root, path));
-  if (!response.ok) throw new Error(`missing required asset '${path}'`);
+  if (!response.ok) throw new Error(`Missing character asset '${path}'.`);
+  const header = new Uint8Array(await response.arrayBuffer()).subarray(0, 8);
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (header.length !== signature.length || !signature.every((value, index) => header[index] === value)) {
+    throw new Error(`Character asset '${path}' is not a readable PNG.`);
+  }
 }
 
-function calibrationFromFile(characterId: string, packageVersion: string, file?: CalibrationFile, combinedFace = false): { calibration: CharacterCalibration; supportedLayers: CalibrationLayer[] } {
-  const flatLayers: Partial<CharacterCalibration["layers"]> = {};
-  const pivots = { ...file?.pivots };
-  const clampPivot = (value: number | undefined): number => Number.isFinite(value) ? Math.min(1, Math.max(0, value as number)) : 0.5;
-  for (const layer of calibrationLayers) {
-    const sourceLayer = layer === "head" ? file?.layers?.head ?? file?.layers?.headGroup : file?.layers?.[layer];
-    const value = sourceLayer;
-    if (!value) continue;
-    const nested = value as { transform?: Partial<CharacterCalibration["layers"][CalibrationLayer]>; pivot?: { x?: number; y?: number } };
-    const transform = nested.transform && typeof nested.transform === "object" ? nested.transform : value as Partial<CharacterCalibration["layers"][CalibrationLayer]>;
-    flatLayers[layer] = transform as CharacterCalibration["layers"][CalibrationLayer];
-    if (nested.pivot) pivots[layer === "head" ? "headGroup" : layer as keyof typeof pivots] = { x: clampPivot(nested.pivot.x), y: clampPivot(nested.pivot.y) };
+function calibrationFromManifest(
+  manifest: CanonicalCharacterManifest,
+  file: Record<string, unknown>,
+): CharacterCalibration {
+  if (file.schema_version !== "1.0"
+    || file.package_id !== manifest.package_id
+    || file.version !== manifest.version
+    || !file.canvas || typeof file.canvas !== "object"
+    || (file.canvas as Record<string, unknown>).width !== manifest.canvas.width
+    || (file.canvas as Record<string, unknown>).height !== manifest.canvas.height
+    || !file.layers || typeof file.layers !== "object" || Array.isArray(file.layers)) {
+    throw new Error(`calibration.json must use schema 1.0 and match ${manifest.package_id} v${manifest.version} and its canvas.`);
   }
-  for (const target of ["headGroup", "hands", "leftArm", "rightArm"] as const) {
-    const pivot = pivots[target];
-    if (pivot) pivots[target] = { x: clampPivot(pivot.x), y: clampPivot(pivot.y) };
+  const sourceLayers = file.layers as Record<string, Record<string, unknown>>;
+  const supportedLayers: CalibrationLayer[] = ["body", "headGroup", "head", "face", "mouth"];
+  if (supportedLayers.some((layer) => !sourceLayers[layer])) {
+    throw new Error("calibration.json must define transforms for body, headGroup, head, face, and mouth.");
   }
-  const supportedLayers = calibrationLayers.filter((layer) => Boolean(flatLayers[layer]));
-  const calibration = createDefaultCalibration(characterId, packageVersion, flatLayers, pivots);
-  return { calibration, supportedLayers: supportedLayers.length ? supportedLayers : combinedFace ? ["body", "head", "face", "mouth"] : ["body", "head", "eyes", "eyebrows", "mouth"] };
+  const baseline: Partial<Record<CalibrationLayer, Partial<CharacterCalibration["layers"][CalibrationLayer]>>> = {};
+  for (const layer of supportedLayers) {
+    const source = sourceLayers[layer];
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      throw new Error(`calibration.json layer '${layer}' must be a transform object.`);
+    }
+    const allowedKeys = layer === "headGroup"
+      ? ["x", "y", "scaleX", "scaleY", "rotation", "opacity", "pivot"]
+      : ["x", "y", "scaleX", "scaleY", "rotation", "opacity"];
+    if (Object.keys(source).some((key) => !allowedKeys.includes(key))) {
+      throw new Error(`calibration.json layer '${layer}' contains unsupported transform fields.`);
+    }
+    const values = ["x", "y", "scaleX", "scaleY", "rotation", "opacity"] as const;
+    const transform = Object.fromEntries(values.map((key) => [key, source[key]]));
+    if (values.some((key) => typeof source[key] !== "number" || !Number.isFinite(source[key] as number))) {
+      throw new Error(`calibration.json layer '${layer}' has an invalid transform.`);
+    }
+    const typedTransform = transform as Partial<CharacterCalibration["layers"][CalibrationLayer]>;
+    if ((typedTransform.scaleX ?? 1) <= 0 || (typedTransform.scaleY ?? 1) <= 0
+      || (typedTransform.opacity ?? 1) < 0 || (typedTransform.opacity ?? 1) > 1) {
+      throw new Error(`calibration.json layer '${layer}' scale must be positive and opacity must be between 0 and 1.`);
+    }
+    baseline[layer] = typedTransform;
+  }
+  const pivotValue = sourceLayers.headGroup.pivot as { x?: unknown; y?: unknown } | undefined;
+  if (pivotValue && (typeof pivotValue.x !== "number" || typeof pivotValue.y !== "number"
+    || !Number.isFinite(pivotValue.x) || !Number.isFinite(pivotValue.y)
+    || pivotValue.x < 0 || pivotValue.x > 1 || pivotValue.y < 0 || pivotValue.y > 1)) {
+    throw new Error("calibration.json headGroup pivot must use normalized x and y values between 0 and 1.");
+  }
+  return createDefaultCalibration(manifest.package_id, manifest.version, baseline, {
+    headGroup: pivotValue ? { x: pivotValue.x as number, y: pivotValue.y as number } : undefined,
+  });
 }
 
 export async function loadPackage(root: string, source: "bundled" | "installed" = "bundled"): Promise<CharacterResource> {
-  let manifest = await fetchJson<RawManifest>(packageUrl(root, "manifest.json"));
-  const packageMetadata = manifest;
-  let calibrationFile: CalibrationFile | undefined;
-  if (!manifest.assets && manifest.layers) {
-    calibrationFile = {
-      schemaVersion: manifest.schemaVersion,
-      character: manifest.character,
-      packageVersion: manifest.packageVersion,
-      layers: manifest.layers,
-      pivots: manifest.pivots,
-    };
-    manifest = await fetchJson<RawManifest>(packageUrl(root, "calibration.json"));
+  const manifest = await fetchJson<CanonicalCharacterManifest>(packageUrl(root, "manifest.json"));
+  validateManifest(manifest);
+  const calibrationData = await fetchJson<Record<string, unknown>>(packageUrl(root, "calibration.json"));
+  const calibration = calibrationFromManifest(manifest, calibrationData);
+  const assetEntries = Object.entries(manifest.assets);
+  const expectedStates = [
+    ...Object.entries(manifest.states.body).map(([state, path]) => [path, "body", state] as const),
+    ...Object.entries(manifest.states.face).map(([state, path]) => [path, "face", state] as const),
+    ...Object.entries(manifest.states.mouth).map(([state, path]) => [path, "mouth", state] as const),
+    [manifest.rig.layers.find((layer) => layer.id === "head")?.assets?.[0] ?? "", "head", "head"] as const,
+  ];
+  if (assetEntries.length !== expectedStates.length) {
+    throw new Error("Manifest asset registry must contain only the assets referenced by the canonical compositor.");
   }
-  if (!manifest.assets) {
-    const index = await fetchJson<ResourceIndex>(packageUrl(root, "resource-index.json"));
-    manifest = { ...manifest, assets: index.assets };
-  }
-  const characterId = normalizeCharacterId(packageMetadata.character ?? manifest.character, packageMetadata.packageId ?? packageMetadata.package_id ?? manifest.packageId ?? manifest.package_id);
-  const packageVersion = packageMetadata.packageVersion ?? packageMetadata.version ?? manifest.packageVersion ?? manifest.version;
-  const assets = manifest.assets;
-  const canvas = parseCanvas(manifest.canvas);
-  if (!characterId || !packageVersion || !assets || !canvas) throw new Error("manifest is missing character, version, canvas, or assets");
-  const faceAssetMap = cleanAssetMap(root, assets, "face");
-  const productionFaces = Object.keys(faceAssetMap ?? {}).filter((name) => name !== "source_sheet");
-  const combinedFace = productionFaces.length > 0;
-  const bodyAssetMap = cleanAssetMap(root, assets, "body");
-  const mouthAssetMap = cleanAssetMap(root, assets, "mouths");
-  const required = combinedFace
-    ? [
-      "body/neutral.png", "head/base.png",
-      ...productionFaces.map((face) => `face/${face}.png`),
-      ...Object.keys(mouthAssetMap ?? {}).map((mouth) => `mouths/${mouth}.png`),
-    ]
-    : [
-      ...bodyPoses.map((pose) => `body/${pose}.png`),
-      "head/base.png",
-      ...eyes.map((eye) => `eyes/${eye}.png`),
-      ...eyebrows.map((eyebrow) => `eyebrows/${eyebrow}.png`),
-      ...mouths.map((mouth) => `mouths/${mouth}.png`),
-    ];
-  for (const path of required) {
-    if (!(path in assets)) throw new Error(`missing required asset '${path}'`);
-    await validateAsset(root, path);
-  }
-  const handsPaths = Object.keys(assets).filter((path) => path.startsWith("hands/") && !path.startsWith("hands/paired_reference/"));
-  for (const path of handsPaths) {
-    if (!path.endsWith(".png") || !(path in assets)) throw new Error(`invalid hands asset '${path}'`);
-    await validateAsset(root, path);
-  }
-  const leftArmAssets = cleanAssetMap(root, assets, "hands/left");
-  const rightArmAssets = cleanAssetMap(root, assets, "hands/right");
-  if (leftArmAssets && !rightArmAssets || rightArmAssets && !leftArmAssets) throw new Error("independent arm packages must provide both hands/left and hands/right");
-  for (const path of [...Object.keys(leftArmAssets ?? {}), ...Object.keys(rightArmAssets ?? {})]) {
-    const fullPath = path.includes("/") ? path : path;
-    if (!fullPath || fullPath === "paired_reference") throw new Error("invalid independent arm asset");
-  }
-
-  calibrationFile ??= await fetchOptionalJson<CalibrationFile>(packageUrl(root, "calibration.json"));
-  if (calibrationFile) {
-    const calibrationCharacter = calibrationFile.character ?? calibrationFile.characterId ?? calibrationFile.package_id?.replace(/_character$/i, "").toLowerCase();
-    const calibrationVersion = calibrationFile.packageVersion ?? calibrationFile.version;
-    if (calibrationFile.schemaVersion !== undefined && calibrationFile.schemaVersion !== 1 || calibrationCharacter && calibrationCharacter !== characterId && calibrationFile.package_id !== packageMetadata.package_id || calibrationVersion !== packageVersion && calibrationVersion !== packageVersion.replace(/\.0$/, "")) {
-      throw new Error("calibration.json schema or package version is incompatible");
+  for (const [path, layer, state] of expectedStates) {
+    const metadata = manifest.assets[path];
+    if (!metadata || metadata.path !== path || metadata.layer !== layer || metadata.state !== state || metadata.type !== "png") {
+      throw new Error(`Manifest asset registry entry '${path}' does not match its ${layer}/${state} state mapping.`);
     }
   }
-  const { calibration, supportedLayers } = calibrationFromFile(characterId, packageVersion, calibrationFile, combinedFace);
-  const body = bodyAssetMap as Record<BodyPose, string>;
-  const faceAssets = combinedFace ? faceAssetMap && Object.fromEntries(productionFaces.map((name) => [name, faceAssetMap[name]])) as Record<Face, string> : undefined;
-  const eyeAssets = combinedFace ? undefined : assetMap(root, assets, "eyes", eyes) as Record<Eyes, string>;
-  const eyebrowAssets = combinedFace ? undefined : assetMap(root, assets, "eyebrows", eyebrows) as Record<Eyebrows, string>;
-  const mouthAssets = mouthAssetMap as Record<Mouth, string>;
-  const discoveredHands = discoveredAssetMap(root, assets, "hands");
-  const directHands = discoveredHands
-    ? Object.fromEntries(Object.entries(discoveredHands).filter(([name]) => !name.includes("/"))) as Record<HandPose, string>
-    : undefined;
-  const handsAssets = directHands && Object.keys(directHands).length ? directHands : undefined;
-  const supportedLayersWithHands = handsAssets && !supportedLayers.includes("hands")
-    ? [...supportedLayers, "hands" as CalibrationLayer]
-    : supportedLayers;
-  const head = assetPath(root, "head", "base");
-  const hair = "hair/default.png" in assets ? assetPath(root, "hair", "default") : undefined;
-  const neutralFace = faceAssets?.normal ?? Object.values(faceAssets ?? {})[0];
-  const neutralMouth = mouthAssets.neutral ?? Object.values(mouthAssets)[0];
-  const neutralBody = body.neutral ?? Object.values(body)[0];
-  const independentArms = leftArmAssets && rightArmAssets;
-  const applicableLayers = [
-    ...supportedLayersWithHands,
-    ...(combinedFace ? ["face", "mouth"] as CalibrationLayer[] : []),
-    ...(leftArmAssets && rightArmAssets ? ["leftArm", "rightArm"] as CalibrationLayer[] : []),
-  ];
+  await Promise.all(assetEntries.map(([path]) => validatePng(root, path)));
+  const mapStates = <T extends string>(states: Record<T, string>): Record<T, string> =>
+    Object.fromEntries((Object.entries(states) as [T, string][]).map(([id, path]) => [id, packageUrl(root, path)])) as Record<T, string>;
+  const headPath = manifest.rig.layers.find((layer) => layer.id === "head")?.assets?.[0];
+  if (!headPath) throw new Error("Canonical character manifest is missing its head PNG.");
   return {
-    id: characterId,
-    name: characterId[0].toUpperCase() + characterId.slice(1),
-    packageVersion,
-    body: neutralBody,
-    head,
-    hair,
-    eyes: eyeAssets?.normal ?? neutralFace ?? head,
-    eyebrows: eyebrowAssets?.normal ?? "normal",
-    face: neutralFace,
-    mouth: neutralMouth,
-    expression: "expressions/neutral.png" in assets ? assetPath(root, "expressions", "neutral") : head,
-    assets: { body, head, hair, face: faceAssets, eyes: eyeAssets, eyebrows: eyebrowAssets, mouth: mouthAssets, hands: independentArms ? undefined : handsAssets, leftArm: leftArmAssets, rightArm: rightArmAssets },
-    canvas,
+    id: manifest.package_id,
+    name: manifest.display_name ?? manifest.name ?? manifest.package_id,
+    packageVersion: manifest.version,
+    assets: {
+      body: mapStates<BodyPose>(manifest.states.body),
+      head: packageUrl(root, headPath),
+      face: mapStates<Face>(manifest.states.face),
+      mouth: mapStates<Mouth>(manifest.states.mouth),
+    },
+    defaults: manifest.default_state,
+    canvas: { width: manifest.canvas.width, height: manifest.canvas.height },
     calibration,
-    supportedLayers: calibrationLayers.filter((layer) => applicableLayers.includes(layer)),
+    supportedLayers: ["body", "headGroup", "head", "face", "mouth"],
     packageRoot: root,
-    manifest: packageMetadata as Record<string, unknown>,
+    manifest,
     source,
   };
 }
 
-function versionParts(version: string): number[] {
-  return version.split(".").map((part) => Number.parseInt(part, 10) || 0);
-}
-
-function compareVersions(left: string, right: string): number {
-  const a = versionParts(left);
-  const b = versionParts(right);
-  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
-    if ((a[index] ?? 0) !== (b[index] ?? 0)) return (a[index] ?? 0) - (b[index] ?? 0);
+function clearRegistry(): void {
+  for (const collection of [resourceRegistry.characters, resourceRegistry.packages]) {
+    for (const key of Object.keys(collection)) delete collection[key];
   }
-  return 0;
 }
 
 export async function discoverCharacterResources(): Promise<{ resources: CharacterResource[]; warnings: string[] }> {
@@ -284,42 +234,40 @@ export async function discoverCharacterResources(): Promise<{ resources: Charact
   const index = await fetchJson<PackageIndex>("/assets/characters/index.json");
   const loaded: CharacterResource[] = [];
   const warnings: string[] = [];
+  const registeredPackages = new Set<string>();
+  const register = (resource: CharacterResource, packagePath: string) => {
+    const key = `${resource.id}@${resource.packageVersion ?? "unknown"}`;
+    if (registeredPackages.has(key)) {
+      warnings.push(`Duplicate character package ignored: ${key} (${packagePath})`);
+      return;
+    }
+    registeredPackages.add(key);
+    loaded.push(resource);
+    resourceRegistry.packages[key] = resource;
+  };
   for (const entry of index.packages) {
     try {
-      const resource = await loadPackage(entry.path);
-      loaded.push(resource);
-      resourceRegistry.packages[`${resource.id}@${resource.packageVersion ?? "unknown"}`] = resource;
+      register(await loadPackage(entry.path), entry.path);
     } catch (error) {
       warnings.push(`Character package invalid: ${entry.path} ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  try {
-    const installed = await listInstalledCharacterPackages();
-    for (const packageSummary of installed) {
-      try {
-        const resource = await loadPackage(assetUrl(packageSummary.installedPath), "installed");
-        loaded.push(resource);
-        resourceRegistry.packages[`${resource.id}@${resource.packageVersion ?? "unknown"}`] = resource;
-      } catch (error) {
-        warnings.push(`Installed character package invalid: ${packageSummary.installedPath} ${error instanceof Error ? error.message : String(error)}`);
-      }
+  const installed = await listInstalledCharacterPackages();
+  for (const summary of installed) {
+    if (summary.status === "error" || summary.status === "missing") {
+      warnings.push(summary.error ?? `Installed character package is unavailable: ${summary.packageId}`);
+      continue;
     }
-  } catch (error) {
-    if (error instanceof Error && !error.message.includes("available in the desktop app")) throw error;
+    try {
+      register(await loadPackage(summary.installedPath, "installed"), summary.installedPath);
+    } catch (error) {
+      warnings.push(`Installed character package invalid: ${summary.installedPath} ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   for (const id of new Set(loaded.map((resource) => resource.id))) {
-    const versions = loaded.filter((resource) => resource.id === id).sort((a, b) => compareVersions(b.packageVersion ?? "0", a.packageVersion ?? "0"));
-    const newest = versions[0];
-    if (newest) resourceRegistry.characters[id] = newest;
+    const versions = loaded.filter((resource) => resource.id === id)
+      .sort((left, right) => (right.packageVersion ?? "0").localeCompare(left.packageVersion ?? "0", undefined, { numeric: true }));
+    if (versions[0]) resourceRegistry.characters[id] = versions[0];
   }
   return { resources: loaded, warnings };
 }
-
-export async function loadSubaruResource(): Promise<CharacterResource> {
-  const { resources } = await discoverCharacterResources();
-  const resource = resources.filter((item) => item.id === "subaru").sort((a, b) => compareVersions(b.packageVersion ?? "0", a.packageVersion ?? "0"))[0];
-  if (!resource) throw new Error("No valid Subaru character package was discovered.");
-  return resource;
-}
-
-export type { ResourceCollection };

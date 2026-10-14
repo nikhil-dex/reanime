@@ -2,9 +2,8 @@ import { create } from "zustand";
 import { initialProject } from "../data/sampleScene";
 import type { Project } from "../types/project";
 import type { CalibrationLayer, CalibrationPivot, CalibrationTransform, CharacterCalibration, PivotTarget } from "../types/project";
-import { createDefaultCalibration } from "../data/characterCalibration";
+import { createDefaultCalibration, isValidStoredCalibration, parsePackageCalibration } from "../data/characterCalibration";
 import { discoverCharacterResources } from "../data/resourceRegistry";
-import { resolveExpression } from "../data/characterExpressions";
 import { resourceRegistry } from "../data/resourceRegistry";
 
 interface EditorState {
@@ -44,7 +43,8 @@ interface EditorState {
   setCalibrationDisplay: (key: "showGuides" | "showGrid" | "showBoundingBox" | "referenceMode", value: boolean) => void;
   importCalibration: (data: unknown) => void;
   addCharacter: (characterId: string) => void;
-  updateCharacter: (updates: Partial<Pick<CharacterState, "characterId" | "expression" | "body" | "face" | "eyes" | "eyebrows" | "mouth" | "hands" | "leftArm" | "rightArm" | "scale" | "position">>) => void;
+  activateCharacter: (characterId: string) => void;
+  updateCharacter: (updates: Partial<Pick<CharacterState, "characterId" | "expression" | "body" | "face" | "mouth" | "scale" | "position">>) => void;
   setPreview: (previewId: string | null) => void;
   setPreviewPlaying: (playing: boolean) => void;
   setPreviewLoop: (loop: boolean) => void;
@@ -97,8 +97,9 @@ export const useEditorStore = create<EditorState>((set) => ({
       try {
         const stored = localStorage.getItem(`reanime-calibration-${active.id}@${active.packageVersion}`);
         if (stored) {
-          const parsed = JSON.parse(stored) as CharacterCalibration;
-          if (parsed.characterId === active.id && parsed.packageVersion === active.packageVersion && parsed.layers) currentCalibration = parsed;
+          const parsed: unknown = JSON.parse(stored);
+          if (isValidStoredCalibration(parsed, active.id, active.packageVersion ?? "unknown")) currentCalibration = parsed;
+          else console.warn(`Saved calibration for ${active.id}@${active.packageVersion} is invalid; using package defaults.`);
         }
       } catch {
         console.warn(`Unable to restore saved calibration for ${active.id}@${active.packageVersion}.`);
@@ -155,11 +156,8 @@ export const useEditorStore = create<EditorState>((set) => ({
           ...state.calibration.layers,
           [state.calibrationLayer]: state.calibrationBaseline.layers[state.calibrationLayer],
         },
-        pivots: ["head", "hands", "leftArm", "rightArm"].includes(state.calibrationLayer)
-          ? (() => {
-            const target: PivotTarget = state.calibrationLayer === "head" ? "headGroup" : state.calibrationLayer as PivotTarget;
-            return { ...state.calibration.pivots, [target]: state.calibrationBaseline.pivots?.[target] ?? { x: 0.5, y: 0.5 } };
-          })()
+        pivots: state.calibrationLayer === "headGroup"
+          ? { ...state.calibration.pivots, headGroup: state.calibrationBaseline.pivots?.headGroup ?? { x: 0.5, y: 0.5 } }
           : state.calibration.pivots,
       },
     })),
@@ -177,21 +175,14 @@ export const useEditorStore = create<EditorState>((set) => ({
   setPreviewLoop: (previewLoop) => set({ previewLoop }),
   setPreviewElapsed: (previewElapsed) => set({ previewElapsed }),
   setPreviewRunAll: (previewRunAll) => set({ previewRunAll }),
-  importCalibration: (data) => {
-    if (!data || typeof data !== "object") throw new Error("Calibration import must be a JSON object.");
-    const candidate = data as Partial<CharacterCalibration> & { schemaVersion?: number };
-    set((state) => {
-      if (
-        candidate.schemaVersion !== 1 ||
-        candidate.characterId !== state.calibrationBaseline.characterId ||
-        candidate.packageVersion !== state.calibrationBaseline.packageVersion ||
-        !candidate.layers
-      ) {
-        throw new Error(`Calibration package or version does not match ${state.calibrationBaseline.characterId} ${state.calibrationBaseline.packageVersion}.`);
-      }
-      return { calibration: candidate as CharacterCalibration };
-    });
-  },
+  importCalibration: (data) => set((state) => ({
+    calibration: parsePackageCalibration(
+      data,
+      state.calibrationBaseline.characterId,
+      state.calibrationBaseline.packageVersion,
+      resourceRegistry.characters[state.calibrationBaseline.characterId]?.canvas,
+    ),
+  })),
   addCharacter: (characterId) =>
     set((state) => {
       const scene = state.project.scenes.find((item) => item.id === state.activeSceneId);
@@ -204,11 +195,9 @@ export const useEditorStore = create<EditorState>((set) => ({
         position: { x: 0.5, y: 0.55 },
         scale: 1,
         expression: "neutral",
-        body: "neutral",
-        eyes: "normal",
-        eyebrows: "normal",
-        face: "normal",
-        mouth: "neutral",
+        body: resourceRegistry.characters[characterId]?.defaults.body ?? "neutral",
+        face: resourceRegistry.characters[characterId]?.defaults.face ?? "normal",
+        mouth: resourceRegistry.characters[characterId]?.defaults.mouth ?? "neutral",
         visible: true,
         layer: scene.characters.length + 1,
       };
@@ -222,6 +211,20 @@ export const useEditorStore = create<EditorState>((set) => ({
         selectedObjectId: id,
       };
     }),
+  activateCharacter: (characterId) => {
+    const resource = resourceRegistry.characters[characterId];
+    if (!resource) return;
+    let calibration = resource.calibration;
+    try {
+      const stored = localStorage.getItem(`reanime-calibration-${resource.id}@${resource.packageVersion}`);
+      if (stored) {
+        const parsed: unknown = JSON.parse(stored);
+        if (isValidStoredCalibration(parsed, resource.id, resource.packageVersion ?? "unknown")) calibration = parsed;
+        else console.warn(`Saved calibration for ${resource.id}@${resource.packageVersion} is invalid; using package defaults.`);
+      }
+    } catch { console.warn(`Unable to restore saved calibration for ${resource.id}@${resource.packageVersion}.`); }
+    set({ calibration, calibrationBaseline: resource.calibration, calibrationLayer: resource.supportedLayers[0] ?? "head" });
+  },
   updateCharacter: (updates) =>
     set((state) => ({
       project: {
@@ -237,10 +240,11 @@ export const useEditorStore = create<EditorState>((set) => ({
                     : {
                       ...character,
                       ...updates,
-                      ...(updates.expression ? resolveExpression(updates.expression) : {}),
-                      ...(updates.face ? {
-                        eyes: updates.face,
-                        eyebrows: updates.face === "angry" ? "angry" : updates.face === "sad" ? "sad" : "normal",
+                      ...(updates.characterId && resourceRegistry.characters[updates.characterId] ? {
+                        packageVersion: resourceRegistry.characters[updates.characterId].packageVersion,
+                        body: resourceRegistry.characters[updates.characterId].defaults.body,
+                        face: resourceRegistry.characters[updates.characterId].defaults.face,
+                        mouth: resourceRegistry.characters[updates.characterId].defaults.mouth,
                       } : {}),
                     },
                 ),

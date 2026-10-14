@@ -1,48 +1,25 @@
-# Reze Character Package v0.2.1
+# Reze — Re:Anime Character Package v0.3.0
 
-## Runtime architecture
+## Package contents
+- Body pose states: 10
+- Head base: 1
+- Combined eyes + eyebrows face states: 11
+- Mouth states: 8
 
-Character
-- Body
-- HeadGroup
-  - Head
-  - Face
-  - Mouth
-- LeftArm
-- RightArm
+## Layer contract
+- `body/`: complete body pose images, including arms/hands for each pose.
+- `head/head.png`: supplied head/hair base layer.
+- `face/`: eyes and eyebrows combined into a single expression layer.
+- `mouth/`: mouth-only states.
+- `manifest.json`: Re:Anime package metadata and state registry.
+- `calibration.json`: initial neutral transforms.
 
-## Independent arm assets
+## Defaults
+- Body: `neutral`
+- Face: `normal_open`
+- Mouth: `neutral`
 
-`hands/left/` and `hands/right/` contain independently extracted arm/hand poses
-from the supplied masked sprite sheet. Each production asset is a 1024x1024 RGBA PNG.
+## Important
+All PNGs have been uniformly resized from the supplied 1254×1254 canvas to 1024×1024 to match the current Re:Anime production canvas. The artwork and transparent placement were preserved by uniform resampling; no layer was individually repositioned.
 
-## Paired reference poses
-
-`hands/paired_reference/` contains gestures where the two arms physically touch
-or overlap in the source art (heart, prayer, crossed-arm compositions). These are
-reference-only and are NOT presented as independent production layers.
-
-## Pivot preparation
-
-`calibration.json` contains independent pivot data for HeadGroup, LeftArm and RightArm.
-This prepares the character for future animation. No Timeline/keyframe/idle animation
-is included in this package.
-
-## Source fidelity
-
-The supplied artwork was used as the source of truth. No new character design was
-invented.
-
-
-## Face asset source
-
-`face/states_sheet_clean.png` is copied unchanged from the earlier Reze source ZIP. It is a complete eye-expression sheet containing both-eye expressions; no new face art was generated. It remains a sheet rather than individually split production states.
-
-
-## Individually selectable face states
-
-`face/` now contains individually selectable 1024x1024 transparent PNGs. Each state
-pairs adjacent left/right eye components from the original alpha-masked sprite sheet
-so the renderer can swap both eyes together as one Face layer. `source_sheet.png`
-is retained as the original reference. The states use the supplied artwork only;
-no new face artwork was generated.
+Calibration is a neutral starting point, not a claim that all layer pivots have been visually validated inside the running Re:Anime renderer.

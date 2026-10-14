@@ -11,11 +11,13 @@ export interface CharacterPackageSummary {
   description?: string;
   previewPath?: string;
   installedPath: string;
+  importedAt: number;
   source: "bundled" | "installed";
+  status?: "ready" | "missing" | "error";
+  error?: string | null;
   bodyPoseCount?: number;
   faceVariantCount?: number;
   mouthVariantCount?: number;
-  handsPoseCount?: number;
 }
 
 export interface CharacterImportPreview extends CharacterPackageSummary {

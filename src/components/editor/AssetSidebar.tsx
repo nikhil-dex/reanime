@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "../common/Icon";
 import { resourceRegistry } from "../../data/resourceRegistry";
 import { useEditorStore } from "../../store/editorStore";
@@ -6,8 +6,11 @@ import {
   chooseCharacterPackage,
   installCharacterPackage,
   previewCharacterPackage,
+  listInstalledCharacterPackages,
+  removeCharacterPackage,
+  assetUrl,
 } from "../../data/characterLibrary";
-import type { CharacterImportPreview } from "../../types/characterLibrary";
+import type { CharacterImportPreview, CharacterPackageSummary } from "../../types/characterLibrary";
 
 const sections: { label: string; icon: IconName; detail: string }[] = [
   { label: "Characters", icon: "characters", detail: "Kai" },
@@ -23,11 +26,21 @@ export function AssetSidebar() {
   const [importPath, setImportPath] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [installed, setInstalled] = useState<CharacterPackageSummary[]>([]);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"name" | "recent">("recent");
+  const [pendingDelete, setPendingDelete] = useState<CharacterPackageSummary | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const addCharacter = useEditorStore((state) => state.addCharacter);
+  const activateCharacter = useEditorStore((state) => state.activateCharacter);
   const refreshResources = useEditorStore((state) => state.refreshResources);
   useEditorStore((state) => state.resourceRevision);
-  const selectedObjectId = useEditorStore((state) => state.selectedObjectId);
   const characters = Object.values(resourceRegistry.characters);
+  const project = useEditorStore((state) => state.project);
+  const setCalibrationMode = useEditorStore((state) => state.setCalibrationMode);
+  const reloadLibrary = async () => setInstalled(await listInstalledCharacterPackages());
+  useEffect(() => { void reloadLibrary().catch((error: unknown) => setImportError(String(error))); }, []);
+  const visiblePackages = useMemo(() => installed.filter((item) => item.displayName.toLowerCase().includes(query.toLowerCase())).sort((a, b) => sort === "name" ? a.displayName.localeCompare(b.displayName) : b.importedAt - a.importedAt), [installed, query, sort]);
 
   const importCharacter = async () => {
     setImportError(null);
@@ -53,6 +66,8 @@ export function AssetSidebar() {
       setImportPreview(null);
       setImportPath(null);
       await refreshResources();
+      await reloadLibrary();
+      setNotice("Character imported successfully.");
     } catch (error) {
       setImportError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -91,16 +106,23 @@ export function AssetSidebar() {
         <div className="section-label">{active.toUpperCase()}</div>
         {active === "Characters" ? (
           <>
+            <input className="library-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search characters" aria-label="Search characters" />
+            <select className="library-sort" value={sort} onChange={(event) => setSort(event.target.value as "name" | "recent")} aria-label="Sort characters"><option value="recent">Recently imported</option><option value="name">Name</option></select>
             <button className="import-character-button" onClick={() => void importCharacter()} disabled={isImporting}>
               <Icon name="plus" /> {isImporting ? "Validating..." : "Import Character"}
             </button>
-            {characters.map((character) => (
-              <button className={`character-asset${selectedObjectId?.startsWith(`${character.id}-`) ? " selected" : ""}`} key={character.id} onClick={() => addCharacter(character.id)}>
-                <span className="asset-avatar">{character.name[0]}</span>
-                <span className="asset-copy"><strong>{character.name}</strong><small>Sample character</small></span>
-                <span className="status-dot" />
-              </button>
-            ))}
+            {installed.length === 0 ? <div className="empty-assets">No imported characters yet. Import a character package to get started.</div> : visiblePackages.map((item) => {
+              const character = characters.find((entry) => entry.id === item.characterId);
+              return <article className="library-card" key={`${item.characterId}@${item.version}`}>
+                {item.previewPath ? <img className="library-thumb" src={assetUrl(item.previewPath)} alt="" /> : <span className="asset-avatar">{item.displayName[0]}</span>}
+                <div className="asset-copy"><strong>{item.displayName}</strong><small>v{item.version} · {item.status === "error" ? "Needs reimport" : item.status === "missing" ? "Missing" : "Ready"}</small>{item.status === "error" && item.error ? <small className="library-error">{item.error}</small> : <small>{item.bodyPoseCount ?? 0} poses · {item.faceVariantCount ?? 0} expressions</small>}</div>
+                <div className="library-actions">
+                  <button onClick={() => { if (character) { activateCharacter(character.id); addCharacter(character.id); setCalibrationMode(false); } }} disabled={!character} title="Use Character">Use</button>
+                  <button onClick={() => { if (character) { activateCharacter(character.id); setCalibrationMode(true); } }} disabled={!character} title="Edit or calibrate">Calibrate</button>
+                  <button className="danger-action" onClick={() => setPendingDelete(item)} title="Delete Character" disabled={item.status === "error"}>Delete</button>
+                </div>
+              </article>;
+            })}
           </>
         ) : (
           <div className="empty-assets">
@@ -141,6 +163,12 @@ export function AssetSidebar() {
           </section>
         </div>
       )}
+      {pendingDelete && <div className="library-modal-backdrop"><section className="library-modal" role="dialog" aria-modal="true"><div className="library-details"><h3>Delete {pendingDelete.displayName}?</h3><p>This removes the character from your local Re:Anime library. Saved scenes that use it will need a replacement.</p><div className="modal-actions"><button className="select-field" onClick={() => setPendingDelete(null)}>Cancel</button><button className="select-field danger-action" onClick={() => {
+        const inUse = project.scenes.some((scene) => scene.characters.some((item) => item.characterId === pendingDelete.characterId));
+        if (inUse) { setNotice("This character is used in the current project. Remove it from all scenes before deleting."); setPendingDelete(null); return; }
+        void removeCharacterPackage(pendingDelete.characterId, pendingDelete.version).then(async () => { setPendingDelete(null); await reloadLibrary(); await refreshResources(); setNotice("Character deleted."); }).catch((error: unknown) => setNotice(`Delete failed: ${String(error)}`));
+      }}>Delete</button></div></div></section></div>}
+      {notice && <div className="library-toast" role="status">{notice}<button onClick={() => setNotice(null)}>×</button></div>}
     </aside>
   );
 }

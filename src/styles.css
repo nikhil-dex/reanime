@@ -88,6 +88,17 @@ button:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
 .animation-qa-panel .select-field.active { color: var(--purple); border-color: #625b98; background: #292541; }
 .inspector-tip-text { display: block; margin-top: 10px; color: var(--muted); font-size: 9px; line-height: 1.4; }
 .library-error { margin: 18px; border: 1px solid #684550; border-radius: 6px; padding: 12px; color: #f0b5bc; background: #321f27; font-size: 11px; line-height: 1.5; }
+.library-search,.library-sort { width: 100%; height: 31px; margin-bottom: 7px; padding: 0 8px; border: 1px solid #343540; border-radius: 5px; color: #d0cfe0; background: #14151b; font: inherit; font-size: 10px; }
+.library-card { display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 8px; margin: 7px 0; padding: 8px; border: 1px solid #30313b; border-radius: 6px; background: #1a1b23; }
+.library-thumb { width: 38px; height: 42px; object-fit: contain; border-radius: 4px; background: #242530; }
+.library-card .asset-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.library-card .asset-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-card .asset-copy small { font-size: 9px; }
+.library-actions { grid-column: 1 / -1; display: flex; gap: 5px; }
+.library-actions button { flex: 1; height: 25px; border: 1px solid #393a48; border-radius: 4px; color: #c9c4e5; background: #22212f; font-size: 9px; }
+.library-actions .danger-action,.danger-action { color: #edb3bb; }
+.library-toast { position: fixed; z-index: 20; right: 18px; bottom: 38px; max-width: 360px; display: flex; gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid #45425d; border-radius: 6px; color: #ddd9f2; background: #242331; font-size: 11px; box-shadow: 0 8px 30px #0007; }
+.library-toast button { border: 0; color: inherit; background: transparent; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .main-column { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
 .preview-workspace { min-height: 0; flex: 1; display: flex; flex-direction: column; padding: 0 2px; }

@@ -1,48 +1,56 @@
 {
-  "package_id": "reze_character",
-  "version": "0.2.1",
+  "schema_version": "1.0",
+  "package_id": "reze",
+  "version": "0.3.3",
+  "canvas": {
+    "width": 1024,
+    "height": 1024
+  },
   "layers": {
+    "body": {
+      "x": 0,
+      "y": 0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 1
+    },
     "headGroup": {
-      "transform": {
-        "x": 0,
-        "y": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "rotation": 0,
-        "opacity": 1
-      },
+      "x": 0,
+      "y": 0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 1,
       "pivot": {
         "x": 0.5,
-        "y": 0.82
+        "y": 0.36
       }
     },
-    "leftArm": {
-      "transform": {
-        "x": 0,
-        "y": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "rotation": 0,
-        "opacity": 1
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
+    "head": {
+      "x": 0,
+      "y": 0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 1
     },
-    "rightArm": {
-      "transform": {
-        "x": 0,
-        "y": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "rotation": 0,
-        "opacity": 1
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
+    "face": {
+      "x": 0,
+      "y": 0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 1
+    },
+    "mouth": {
+      "x": 0,
+      "y": 0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "opacity": 1
     }
-  }
+  },
+  "notes": "Neutral identity transforms are provided as a starting point. Verify head/face/mouth alignment in the Re:Anime preview before locking this package."
 }

@@ -1,40 +1,341 @@
 {
-  "package_id": "reze_character",
-  "version": "0.2.1",
+  "schema_version": "1.0",
+  "package_id": "reze",
+  "version": "0.3.3",
   "name": "Reze",
   "display_name": "Reze",
-  "description": "Re:Anime Reze character package with independent left and right arm-hand layers.",
+  "description": "Layered Re:Anime character package with body pose states, combined eye-and-eyebrow face states, and mouth states.",
+  "author": "User-edited assets",
   "canvas": {
     "width": 1024,
     "height": 1024,
-    "format": "RGBA"
+    "color_space": "RGBA",
+    "background": "transparent"
   },
-  "architecture": {
-    "body": "body/neutral.png",
-    "head": "head/base.png",
-    "face": "face/*.png",
-    "mouth": "mouths/",
-    "left_arm": "hands/left/",
-    "right_arm": "hands/right/"
-  },
-  "renderer": {
-    "layer_order": [
-      "body",
-      "headGroup",
-      "leftArm",
-      "rightArm"
+  "rig": {
+    "type": "state_compositor",
+    "layers": [
+      {
+        "id": "body",
+        "type": "pose_state",
+        "required": true,
+        "assets": [
+          "body/Standee.png",
+          "body/arm crossed.png",
+          "body/cheerful.png",
+          "body/fashion.png",
+          "body/neutral.png",
+          "body/peace sign.png",
+          "body/pointing.png",
+          "body/shy.png",
+          "body/thinking.png",
+          "body/waving.png"
+        ]
+      },
+      {
+        "id": "headGroup",
+        "type": "container",
+        "required": true,
+        "children": [
+          "head",
+          "face",
+          "mouth"
+        ]
+      },
+      {
+        "id": "head",
+        "type": "base_art",
+        "required": true,
+        "assets": [
+          "head/head.png"
+        ]
+      },
+      {
+        "id": "face",
+        "type": "expression_state",
+        "required": true,
+        "composition": "eyes_and_eyebrows_combined",
+        "assets": [
+          "face/angry_side_glance.png",
+          "face/closed.png",
+          "face/closed_blush.png",
+          "face/hal_closed_blush.png",
+          "face/half_closed.png",
+          "face/normal_open.png",
+          "face/skeptical.png",
+          "face/sleepy_half_closed.png",
+          "face/surperised.png",
+          "face/wink.png",
+          "face/worried.png",
+          "face/serious.png",
+          "face/angry.png"
+        ]
+      },
+      {
+        "id": "mouth",
+        "type": "mouth_state",
+        "required": true,
+        "assets": [
+          "mouth/laugh.png",
+          "mouth/neutral.png",
+          "mouth/open.png",
+          "mouth/round.png",
+          "mouth/shout.png",
+          "mouth/small_open.png",
+          "mouth/smile.png",
+          "mouth/tongue_out.png"
+        ]
+      }
     ],
-    "headGroup": [
-      "head",
-      "face",
-      "mouth"
+    "notes": [
+      "Body PNGs are complete body/pose states, including the arms and hands drawn in each pose.",
+      "Face PNGs contain eyes and eyebrows together; they do not contain the head, hair, or mouth.",
+      "Mouth PNGs contain mouth artwork only.",
+      "The head layer includes the head and hair artwork supplied in this package."
     ]
   },
-  "notes": [
-    "Left and right arm-hand poses are extracted individually from the supplied masked sprite sheet.",
-    "Touching two-arm gestures are preserved under hands/paired_reference/ because they cannot be honestly represented as independent layers without reconstructing artwork.",
-    "The package remains compatible with the Re:Anime state/pose compositor concept.",
-    "face/source_sheet.png preserves the original alpha-masked eye-expression sheet for reference.",
-    "Face expression PNGs are paired left/right eye tiles from the source sheet. Some asymmetrical states (such as wink) intentionally remain asymmetrical."
-  ]
+  "states": {
+    "body": {
+      "Standee": "body/Standee.png",
+      "arm_crossed": "body/arm crossed.png",
+      "cheerful": "body/cheerful.png",
+      "fashion": "body/fashion.png",
+      "neutral": "body/neutral.png",
+      "peace_sign": "body/peace sign.png",
+      "pointing": "body/pointing.png",
+      "shy": "body/shy.png",
+      "thinking": "body/thinking.png",
+      "waving": "body/waving.png"
+    },
+    "face": {
+      "angry_side_glance": "face/angry_side_glance.png",
+      "closed": "face/closed.png",
+      "closed_blush": "face/closed_blush.png",
+      "half_closed": "face/half_closed.png",
+      "half_closed_blush": "face/hal_closed_blush.png",
+      "normal_open": "face/normal_open.png",
+      "skeptical": "face/skeptical.png",
+      "sleepy_half_closed": "face/sleepy_half_closed.png",
+      "surprised": "face/surperised.png",
+      "wink": "face/wink.png",
+      "worried": "face/worried.png",
+      "serious": "face/serious.png",
+      "angry": "face/angry.png"
+    },
+    "mouth": {
+      "laugh": "mouth/laugh.png",
+      "neutral": "mouth/neutral.png",
+      "open": "mouth/open.png",
+      "round": "mouth/round.png",
+      "shout": "mouth/shout.png",
+      "small_open": "mouth/small_open.png",
+      "smile": "mouth/smile.png",
+      "tongue_out": "mouth/tongue_out.png"
+    }
+  },
+  "default_state": {
+    "body": "neutral",
+    "face": "normal_open",
+    "mouth": "neutral"
+  },
+  "counts": {
+    "body": 10,
+    "head": 1,
+    "face": 14,
+    "mouth": 8
+  },
+  "assets": {
+    "body/Standee.png": {
+      "path": "body/Standee.png",
+      "layer": "body",
+      "state": "Standee",
+      "type": "png"
+    },
+    "body/arm crossed.png": {
+      "path": "body/arm crossed.png",
+      "layer": "body",
+      "state": "arm_crossed",
+      "type": "png"
+    },
+    "body/cheerful.png": {
+      "path": "body/cheerful.png",
+      "layer": "body",
+      "state": "cheerful",
+      "type": "png"
+    },
+    "body/fashion.png": {
+      "path": "body/fashion.png",
+      "layer": "body",
+      "state": "fashion",
+      "type": "png"
+    },
+    "body/neutral.png": {
+      "path": "body/neutral.png",
+      "layer": "body",
+      "state": "neutral",
+      "type": "png"
+    },
+    "body/peace sign.png": {
+      "path": "body/peace sign.png",
+      "layer": "body",
+      "state": "peace_sign",
+      "type": "png"
+    },
+    "body/pointing.png": {
+      "path": "body/pointing.png",
+      "layer": "body",
+      "state": "pointing",
+      "type": "png"
+    },
+    "body/shy.png": {
+      "path": "body/shy.png",
+      "layer": "body",
+      "state": "shy",
+      "type": "png"
+    },
+    "body/thinking.png": {
+      "path": "body/thinking.png",
+      "layer": "body",
+      "state": "thinking",
+      "type": "png"
+    },
+    "body/waving.png": {
+      "path": "body/waving.png",
+      "layer": "body",
+      "state": "waving",
+      "type": "png"
+    },
+    "face/angry_side_glance.png": {
+      "path": "face/angry_side_glance.png",
+      "layer": "face",
+      "state": "angry_side_glance",
+      "type": "png"
+    },
+    "face/closed.png": {
+      "path": "face/closed.png",
+      "layer": "face",
+      "state": "closed",
+      "type": "png"
+    },
+    "face/closed_blush.png": {
+      "path": "face/closed_blush.png",
+      "layer": "face",
+      "state": "closed_blush",
+      "type": "png"
+    },
+    "face/half_closed.png": {
+      "path": "face/half_closed.png",
+      "layer": "face",
+      "state": "half_closed",
+      "type": "png"
+    },
+    "face/hal_closed_blush.png": {
+      "path": "face/hal_closed_blush.png",
+      "layer": "face",
+      "state": "half_closed_blush",
+      "type": "png"
+    },
+    "face/normal_open.png": {
+      "path": "face/normal_open.png",
+      "layer": "face",
+      "state": "normal_open",
+      "type": "png"
+    },
+    "face/skeptical.png": {
+      "path": "face/skeptical.png",
+      "layer": "face",
+      "state": "skeptical",
+      "type": "png"
+    },
+    "face/sleepy_half_closed.png": {
+      "path": "face/sleepy_half_closed.png",
+      "layer": "face",
+      "state": "sleepy_half_closed",
+      "type": "png"
+    },
+    "face/surperised.png": {
+      "path": "face/surperised.png",
+      "layer": "face",
+      "state": "surprised",
+      "type": "png"
+    },
+    "face/wink.png": {
+      "path": "face/wink.png",
+      "layer": "face",
+      "state": "wink",
+      "type": "png"
+    },
+    "face/worried.png": {
+      "path": "face/worried.png",
+      "layer": "face",
+      "state": "worried",
+      "type": "png"
+    },
+    "face/serious.png": {
+      "path": "face/serious.png",
+      "layer": "face",
+      "state": "serious",
+      "type": "png"
+    },
+    "face/angry.png": {
+      "path": "face/angry.png",
+      "layer": "face",
+      "state": "angry",
+      "type": "png"
+    },
+    "mouth/laugh.png": {
+      "path": "mouth/laugh.png",
+      "layer": "mouth",
+      "state": "laugh",
+      "type": "png"
+    },
+    "mouth/neutral.png": {
+      "path": "mouth/neutral.png",
+      "layer": "mouth",
+      "state": "neutral",
+      "type": "png"
+    },
+    "mouth/open.png": {
+      "path": "mouth/open.png",
+      "layer": "mouth",
+      "state": "open",
+      "type": "png"
+    },
+    "mouth/round.png": {
+      "path": "mouth/round.png",
+      "layer": "mouth",
+      "state": "round",
+      "type": "png"
+    },
+    "mouth/shout.png": {
+      "path": "mouth/shout.png",
+      "layer": "mouth",
+      "state": "shout",
+      "type": "png"
+    },
+    "mouth/small_open.png": {
+      "path": "mouth/small_open.png",
+      "layer": "mouth",
+      "state": "small_open",
+      "type": "png"
+    },
+    "mouth/smile.png": {
+      "path": "mouth/smile.png",
+      "layer": "mouth",
+      "state": "smile",
+      "type": "png"
+    },
+    "mouth/tongue_out.png": {
+      "path": "mouth/tongue_out.png",
+      "layer": "mouth",
+      "state": "tongue_out",
+      "type": "png"
+    },
+    "head/head.png": {
+      "path": "head/head.png",
+      "layer": "head",
+      "state": "head",
+      "type": "png"
+    }
+  }
 }
