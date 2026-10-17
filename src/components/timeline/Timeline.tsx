@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Icon } from "../common/Icon";
 import { useEditorStore } from "../../store/editorStore";
 import { resourceRegistry } from "../../data/resourceRegistry";
-import type { CharacterInstance, TimelineKeyframe, TimelineTrack } from "../../types/project";
+import type { CharacterInstance, TimelineClip, TimelineKeyframe, TimelineTrack } from "../../types/project";
 
 const formatTime = (seconds: number) => {
   const wholeSeconds = Math.floor(seconds);
@@ -92,6 +92,56 @@ export function Timeline() {
     if (name !== null) renameScene(activeScene.id, name);
   };
 
+  const addAudioTrack = () => {
+    if (!activeScene) return;
+    const kind = window.prompt("Audio track type: voice, bgm, or sfx", "bgm")?.trim().toLowerCase();
+    if (!kind || !["voice", "bgm", "sfx"].includes(kind)) return;
+    const trackKind = "audio" as const;
+    const track: TimelineTrack = {
+      id: `track-audio-${kind}-${Date.now()}`,
+      name: kind === "bgm" ? "Background Music" : kind === "voice" ? "Voice" : "Sound Effects",
+      kind: trackKind,
+      keyframes: [],
+      clips: [],
+    };
+    useEditorStore.setState((state) => ({
+      project: { ...state.project, scenes: state.project.scenes.map((scene) =>
+        scene.id === activeScene.id ? { ...scene, tracks: [...(scene.tracks ?? []), track] } : scene) },
+    }));
+  };
+
+  const addAudioClip = (track: TimelineTrack) => {
+    if (!activeScene || track.kind !== "audio") return;
+    const available = track.name.toLowerCase().includes("background")
+      ? Object.keys(resourceRegistry.bgm)
+      : track.name.toLowerCase().includes("voice")
+        ? Object.keys(resourceRegistry.voices)
+        : [...new Set([...Object.keys(resourceRegistry.sfx), ...Object.keys(resourceRegistry.bgm), ...Object.keys(resourceRegistry.voices)])];
+    if (!available.length) {
+      window.alert("No matching audio assets are registered yet. Add files under public/assets/media and register them in public/assets/media/index.json.");
+      return;
+    }
+    const resourceId = window.prompt(`Registered audio IDs: ${available.join(", ")}`, available[0]);
+    if (!resourceId || !available.includes(resourceId)) return;
+    const start = Number(window.prompt("Clip start in seconds", String(Math.min(playhead, Math.max(0, duration - 0.1)))));
+    if (!Number.isFinite(start) || start < 0 || start >= duration) return;
+    const clipDuration = Number(window.prompt("Clip duration in seconds", String(Math.max(0.1, duration - start))));
+    if (!Number.isFinite(clipDuration) || clipDuration <= 0 || start + clipDuration > duration) return;
+    const clip: TimelineClip = {
+      id: `audio-clip-${Date.now()}`,
+      start,
+      duration: clipDuration,
+      resourceId,
+      properties: { volume: 1 },
+    };
+    useEditorStore.setState((state) => ({
+      project: { ...state.project, scenes: state.project.scenes.map((scene) => scene.id !== activeScene.id ? scene : ({
+        ...scene,
+        tracks: (scene.tracks ?? []).map((item) => item.id === track.id ? { ...item, clips: [...(item.clips ?? []), clip] } : item),
+      })) },
+    }));
+  };
+
   return (
     <section className="timeline panel">
       <div className="timeline-toolbar">
@@ -111,6 +161,9 @@ export function Timeline() {
           <span>FPS {useEditorStore.getState().project.fps}</span>
           <button className="text-action" onClick={addCharacterKeyframe} disabled={!selectedObjectId} title="Capture selected character's current state at the playhead">
             <Icon name="plus" /> Add keyframe
+          </button>
+          <button className="text-action" onClick={addAudioTrack} title="Add a voice, BGM, or SFX track">
+            <Icon name="plus" /> Audio track
           </button>
         </div>
       </div>
@@ -160,6 +213,12 @@ export function Timeline() {
               {track.keyframes.map((frame, index) => (
                 <button key={`${frame.property}-${frame.time}-${index}`} className={`keyframe-marker ${track.kind}`} style={{ left: `${Math.min(100, Math.max(0, frame.time / duration * 100))}%` }} onClick={() => setPlayhead(frame.time)} title={`${frame.property} at ${frame.time.toFixed(3)}s`} aria-label={`Go to ${frame.property} keyframe`}>◆</button>
               ))}
+              {(track.clips ?? []).map((clip) => (
+                <button key={clip.id} className={`timeline-clip ${track.kind}-clip`} style={{ left: `${Math.min(100, clip.start / duration * 100)}%`, width: `${Math.min(100, clip.duration / duration * 100)}%` }} onClick={() => setPlayhead(clip.start)} title={`${clip.resourceId ?? track.name}: ${clip.start}s–${(clip.start + clip.duration).toFixed(2)}s`}>
+                  {clip.resourceId ?? track.name}
+                </button>
+              ))}
+              {track.kind === "audio" && <button className="scene-action-button add" onClick={() => addAudioClip(track)} title={`Add clip to ${track.name}`} aria-label={`Add audio clip to ${track.name}`}>+</button>}
             </div>
           ))}
           <div className="playhead" style={{ left: `${Math.min(100, Math.max(0, playhead / duration * 100))}%` }}><i /></div>
