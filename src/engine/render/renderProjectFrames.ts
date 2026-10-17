@@ -34,7 +34,7 @@ export async function renderProjectFrames(
         if (cached) frame = cached;
         else {
           const evaluated = evaluateSceneAtTime(scheduled.scene, scheduled.sceneFrame / plan.fps);
-          frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects);
+          frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects, evaluated.activeSubtitles);
           staticSceneFrames.set(scheduled.scene.id, frame);
         }
       } else {
