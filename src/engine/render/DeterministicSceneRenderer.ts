@@ -9,11 +9,6 @@ export interface RenderFrameOptions {
   backgroundColor?: number;
 }
 
-/**
- * Fixed-resolution scene renderer for export. It owns a separate Pixi
- * application so export never depends on the editor viewport or playhead.
- * Reuse one instance for a whole render job.
- */
 export class DeterministicSceneRenderer {
   private app: Application | null = null;
   private readonly stage = new Container();
@@ -58,11 +53,7 @@ export class DeterministicSceneRenderer {
       const background = new Sprite(texture);
       background.anchor.set(0.5);
       background.position.set(this.options.width / 2, this.options.height / 2);
-      const coverScale = Math.max(
-        this.options.width / texture.width,
-        this.options.height / texture.height,
-      );
-      background.scale.set(coverScale);
+      background.scale.set(Math.max(this.options.width / texture.width, this.options.height / texture.height));
       this.stage.addChildAt(background, 1);
     }
 
@@ -79,23 +70,25 @@ export class DeterministicSceneRenderer {
         throw new Error(`Character resource '${instance.characterId}' is not available for export.`);
       }
       const figure = await this.characterRenderer.render(
-        instance,
-        resource,
-        this.options.width,
-        this.options.height,
-        resource.calibration,
+        instance, resource, this.options.width, this.options.height, resource.calibration,
       );
       this.stage.addChild(figure);
     }
 
     app.renderer.render({ container: this.stage });
     const canvas = app.renderer.extract.canvas({ target: this.stage });
-    return new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("PixiJS could not encode the rendered frame as PNG."));
-      }, "image/png");
-    });
+    if ("convertToBlob" in canvas && typeof canvas.convertToBlob === "function") {
+      return canvas.convertToBlob({ type: "image/png" });
+    }
+    if ("toBlob" in canvas && typeof canvas.toBlob === "function") {
+      return new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("PixiJS could not encode the rendered frame as PNG."));
+        }, "image/png");
+      });
+    }
+    throw new Error("The current canvas implementation cannot encode PNG frames.");
   }
 
   destroy(): void {
