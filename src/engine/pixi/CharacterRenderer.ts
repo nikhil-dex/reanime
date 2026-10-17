@@ -38,28 +38,6 @@ export class CharacterRenderer {
     headGroup.alpha = headGroupTransform.opacity
       * (referenceMode && selectedLayer === "headGroup" ? 0.5 : 1);
 
-    if (showPivotMarkers) {
-      const marker = new Graphics()
-        .circle(pivotPoint.x, pivotPoint.y, 7).fill({ color: 0xffc857, alpha: 0.9 })
-        .circle(pivotPoint.x, pivotPoint.y, 11).stroke({ color: 0xfff0a6, width: 2 });
-      marker.eventMode = "static";
-      marker.cursor = "crosshair";
-      let previous: { x: number; y: number } | undefined;
-      marker.on("pointerdown", (event) => { previous = { x: event.global.x, y: event.global.y }; });
-      marker.on("pointermove", (event) => {
-        if (!previous) return;
-        onPivotDrag?.(
-          "headGroup",
-          (event.global.x - previous.x) / figure.scale.x / resource.canvas.width,
-          (event.global.y - previous.y) / figure.scale.y / resource.canvas.height,
-        );
-        previous = { x: event.global.x, y: event.global.y };
-      });
-      marker.on("pointerup", () => { previous = undefined; });
-      marker.on("pointerupoutside", () => { previous = undefined; });
-      figure.addChild(marker);
-    }
-
     const faceState = preview?.face ?? instance.face;
     const mouthState = preview?.mouth ?? instance.mouth;
     const bodyPath = resource.assets.body[instance.body];
@@ -101,6 +79,28 @@ export class CharacterRenderer {
       else headGroup.addChild(sprite);
     }
     figure.addChild(headGroup);
+
+    if (showPivotMarkers) {
+      const marker = new Graphics()
+        .circle(pivotPoint.x, pivotPoint.y, 7).fill({ color: 0xffc857, alpha: 0.9 })
+        .circle(pivotPoint.x, pivotPoint.y, 11).stroke({ color: 0xfff0a6, width: 2 });
+      marker.eventMode = "static";
+      marker.cursor = "crosshair";
+      let previous: { x: number; y: number } | undefined;
+      marker.on("pointerdown", (event) => { previous = { x: event.global.x, y: event.global.y }; });
+      marker.on("pointermove", (event) => {
+        if (!previous) return;
+        onPivotDrag?.(
+          "headGroup",
+          (event.global.x - previous.x) / figure.scale.x / resource.canvas.width,
+          (event.global.y - previous.y) / figure.scale.y / resource.canvas.height,
+        );
+        previous = { x: event.global.x, y: event.global.y };
+      });
+      marker.on("pointerup", () => { previous = undefined; });
+      marker.on("pointerupoutside", () => { previous = undefined; });
+      figure.addChild(marker);
+    }
     return figure;
   }
 }
