@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import type { Project } from "./types/project";
 import { useEditorStore } from "./store/editorStore";
+import { exportProjectToMp4, type ExportProgress } from "./engine/render/exportProjectToMp4";
 
 function downloadProject(project: ReturnType<typeof useEditorStore.getState>["project"]) {
   const content = JSON.stringify(project, null, 2);
@@ -50,9 +51,37 @@ export default function App() {
   const loadProject = useEditorStore((state) => state.loadProject);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [rendering, setRendering] = useState(false);
+  const [renderProgress, setRenderProgress] = useState<ExportProgress | null>(null);
+  const [renderMessage, setRenderMessage] = useState<string | null>(null);
   const isPlaying = useEditorStore((state) => state.isPlaying);
   const setPlaying = useEditorStore((state) => state.setPlaying);
   const refreshResources = useEditorStore((state) => state.refreshResources);
+
+  const exportVideo = async () => {
+    if (rendering) return;
+    setRendering(true);
+    setFileError(null);
+    setRenderMessage("Preparing video export…");
+    setRenderProgress(null);
+    try {
+      const outputPath = await exportProjectToMp4(project, (progress) => {
+        setRenderProgress(progress);
+        setRenderMessage(`Rendering frames: ${progress.completedFrames.toLocaleString()} / ${progress.totalFrames.toLocaleString()}`);
+      });
+      if (outputPath) {
+        setRenderMessage(`Video exported: ${outputPath}`);
+      } else {
+        setRenderMessage(null);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setFileError(message);
+      setRenderMessage(null);
+    } finally {
+      setRendering(false);
+    }
+  };
 
   const openProject = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
@@ -100,7 +129,7 @@ export default function App() {
           <button className="text-action save-action" onClick={() => downloadProject(project)}><Icon name="save" /> Save JSON</button>
           <span className="action-divider" />
           <button className="preview-button" onClick={() => setPlaying(!isPlaying)}><Icon name={isPlaying ? "pause" : "play"} /> Preview</button>
-          <button className="render-button" disabled title="Video rendering is not included in v0.1">Render video <span>↗</span></button>
+          <button className="render-button" disabled={rendering} onClick={() => void exportVideo()} title="Render the current project to MP4">{rendering ? "Rendering…" : "Render video"} <span>↗</span></button>
         </div>
       </header>
       <div className="editor-body">
@@ -112,6 +141,7 @@ export default function App() {
         <PropertiesPanel />
       </div>
       {fileError && <div role="alert" className="project-file-error">{fileError}</div>}
+      {renderMessage && <div role={fileError ? "status" : "status"} className="project-file-error">{renderMessage}{renderProgress && <progress max={1} value={renderProgress.progress} aria-label="Video render progress" />}</div>}
       <footer className="statusbar">
         <span><span className="status-dot" /> All changes local</span>
         <span>1920 × 1080 <i>·</i> 30 FPS</span>
