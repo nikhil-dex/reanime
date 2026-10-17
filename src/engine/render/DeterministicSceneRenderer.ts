@@ -1,5 +1,5 @@
 import { Application, Container, Graphics } from "pixi.js";
-import type { Scene, CharacterCalibration } from "../../types/project";
+import type { Scene } from "../../types/project";
 import { resourceRegistry } from "../../data/resourceRegistry";
 import { CharacterRenderer } from "../pixi/CharacterRenderer";
 
@@ -7,13 +7,12 @@ export interface RenderFrameOptions {
   width: number;
   height: number;
   backgroundColor?: number;
-  calibration?: CharacterCalibration;
 }
 
 /**
- * Fixed-resolution renderer for export. It deliberately owns its own Pixi
- * application rather than resizing or reading the interactive editor preview.
- * One renderer instance should be reused for every frame in an export job.
+ * Fixed-resolution scene renderer for export. It owns a separate Pixi
+ * application so export never depends on the editor viewport or playhead.
+ * Reuse one instance for a whole render job.
  */
 export class DeterministicSceneRenderer {
   private app: Application | null = null;
@@ -49,7 +48,6 @@ export class DeterministicSceneRenderer {
     if (!this.app) throw new Error("Export renderer is not initialized.");
     const app = this.app;
     this.stage.removeChildren().forEach((child) => child.destroy({ children: true }));
-
     this.stage.addChild(new Graphics()
       .rect(0, 0, this.options.width, this.options.height)
       .fill({ color: this.options.backgroundColor ?? 0x151720 }));
@@ -61,20 +59,17 @@ export class DeterministicSceneRenderer {
     for (const instance of orderedCharacters) {
       const resource = instance.packageVersion
         ? resourceRegistry.packages[`${instance.characterId}@${instance.packageVersion}`]
+          ?? resourceRegistry.characters[instance.characterId]
         : resourceRegistry.characters[instance.characterId];
       if (!resource) {
         throw new Error(`Character resource '${instance.characterId}' is not available for export.`);
       }
-      const calibration = this.options.calibration?.characterId === resource.id
-        && this.options.calibration.packageVersion === resource.packageVersion
-        ? this.options.calibration
-        : resource.calibration;
       const figure = await this.characterRenderer.render(
         instance,
         resource,
         this.options.width,
         this.options.height,
-        calibration,
+        resource.calibration,
       );
       this.stage.addChild(figure);
     }
