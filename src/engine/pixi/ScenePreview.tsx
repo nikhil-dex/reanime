@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Application, Container, Graphics } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Text } from "pixi.js";
 import { discoverCharacterResources, resourceRegistry } from "../../data/resourceRegistry";
 import { useEditorStore } from "../../store/editorStore";
 import { CharacterRenderer } from "./CharacterRenderer";
@@ -115,7 +115,22 @@ export function ScenePreview() {
             for (let y = 0; y < height; y += 32) grid.circle(x, y, 1).fill({ color: 0x272a37, alpha: 0.55 });
           }
         }
-        sceneLayer.addChild(background, grid);
+        sceneLayer.addChild(background);
+        const evaluation = scene ? evaluateSceneAtTime(scene, timelineTimeRef.current) : undefined;
+        const evaluatedScene = evaluation?.scene;
+        if (evaluatedScene) {
+          const backgroundPath = resourceRegistry.backgrounds[evaluatedScene.background];
+          if (backgroundPath) {
+            const texture = await Assets.load(backgroundPath);
+            if (disposed || sequence !== redrawSequence) return;
+            const image = new Sprite(texture);
+            image.anchor.set(0.5);
+            image.position.set(width / 2, height / 2);
+            image.scale.set(Math.max(width / texture.width, height / texture.height));
+            sceneLayer.addChild(image);
+          }
+        }
+        sceneLayer.addChild(grid);
         if (calibrationMode && showGuides) {
           const guides = new Graphics()
             .moveTo(width / 2, 0).lineTo(width / 2, height)
@@ -124,7 +139,6 @@ export function ScenePreview() {
           sceneLayer.addChild(guides);
         }
 
-        const evaluatedScene = scene ? evaluateSceneAtTime(scene, timelineTimeRef.current).scene : undefined;
         for (const instance of evaluatedScene?.characters ?? []) {
           const resource = resourceRegistry.characters[instance.characterId];
           const versionedResource = instance.packageVersion
@@ -181,6 +195,53 @@ export function ScenePreview() {
             ).stroke({ color: 0xf19c9c, alpha: 0.5, width: 2 }));
           }
           sceneLayer.addChild(figure);
+        }
+
+        for (const clip of evaluation?.activeEffects ?? []) {
+          if (!clip.resourceId) continue;
+          const path = resourceRegistry.effects[clip.resourceId];
+          if (!path) continue;
+          const texture = await Assets.load(path);
+          if (disposed || sequence !== redrawSequence) return;
+          const effect = new Sprite(texture);
+          effect.anchor.set(0.5);
+          const properties = clip.properties ?? {};
+          const x = typeof properties.x === "number" ? properties.x : 0.5;
+          const y = typeof properties.y === "number" ? properties.y : 0.5;
+          const scale = typeof properties.scale === "number" ? properties.scale : 1;
+          const opacity = typeof properties.opacity === "number" ? properties.opacity : 1;
+          effect.position.set(x <= 1 ? x * width : x, y <= 1 ? y * height : y);
+          effect.scale.set(scale);
+          effect.alpha = Math.min(1, Math.max(0, opacity));
+          sceneLayer.addChild(effect);
+        }
+
+        for (const clip of evaluation?.activeSubtitles ?? []) {
+          const properties = clip.properties ?? {};
+          const textContent = typeof properties.text === "string" ? properties.text : "";
+          if (!textContent.trim()) continue;
+          const fontSize = typeof properties.fontSize === "number" && properties.fontSize > 0
+            ? Math.min(256, properties.fontSize)
+            : 32;
+          const x = typeof properties.x === "number" ? properties.x : 0.5;
+          const y = typeof properties.y === "number" ? properties.y : 0.88;
+          const color = typeof properties.color === "string" ? properties.color : "#ffffff";
+          const subtitle = new Text({
+            text: textContent,
+            style: {
+              fontFamily: "Arial, sans-serif",
+              fontSize,
+              fill: color,
+              fontWeight: "bold",
+              align: "center",
+              wordWrap: true,
+              wordWrapWidth: width * 0.9,
+              stroke: { color: "#000000", width: Math.max(2, fontSize * 0.08) },
+            },
+          });
+          subtitle.anchor.set(0.5, 0.5);
+          subtitle.position.set(x <= 1 ? x * width : x, y <= 1 ? y * height : y);
+          sceneLayer.addChild(subtitle);
         }
       };
 
