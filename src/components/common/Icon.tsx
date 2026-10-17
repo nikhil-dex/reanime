@@ -9,6 +9,7 @@ export type IconName =
   | "play"
   | "pause"
   | "save"
+  | "folder-open"
   | "plus"
   | "chevron"
   | "layers"
@@ -24,6 +25,7 @@ const paths: Record<IconName, ReactNode> = {
   play: <path d="m8 5 12 7-12 7V5Z" />,
   pause: <><path d="M8 5h3v14H8zM16 5h3v14h-3z" /></>,
   save: <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8M7 3v5h8" /></>,
+  "folder-open": <><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1" /><path d="M3 7v11a2 2 0 0 0 2 2h13a2 2 0 0 0 1.9-1.4L22 12H7l-2 8" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
   chevron: <path d="m9 18 6-6-6-6" />,
   layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5" /></>,
