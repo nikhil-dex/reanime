@@ -10,6 +10,56 @@ export type BodyPose = string;
 export type CalibrationLayer = "body" | "headGroup" | "head" | "face" | "mouth";
 export type PivotTarget = "headGroup";
 
+/** Properties currently supported by the deterministic scene evaluator. */
+export type CharacterKeyframeProperty =
+  | "position.x"
+  | "position.y"
+  | "scale"
+  | "visible"
+  | "body"
+  | "face"
+  | "mouth"
+  | "eyes"
+  | "eyebrows"
+  | "expression";
+
+export type TimelineTrackKind =
+  | "character"
+  | "background"
+  | "expression"
+  | "effect"
+  | "audio"
+  | "subtitle";
+
+export interface TimelineKeyframe {
+  /** Time in seconds relative to the start of the scene. */
+  time: number;
+  /** Property path within the track's target. */
+  property: string;
+  /** Numeric values interpolate linearly; other values hold until replaced. */
+  value: number | string | boolean | null;
+  interpolation?: "linear" | "hold";
+}
+
+export interface TimelineClip {
+  id: string;
+  start: number;
+  duration: number;
+  resourceId?: string;
+  properties?: Record<string, number | string | boolean | null>;
+}
+
+export interface TimelineTrack {
+  id: string;
+  name: string;
+  kind: TimelineTrackKind;
+  /** Character instance ID for character/expression tracks. */
+  targetId?: string;
+  keyframes: TimelineKeyframe[];
+  /** Timed resource clips are used by backgrounds, effects, audio and subtitles. */
+  clips?: TimelineClip[];
+}
+
 export interface CalibrationPivot {
   x: number;
   y: number;
@@ -68,6 +118,8 @@ export interface Scene {
   };
   subtitles: string[];
   audio: string[];
+  /** Optional for old project files; absent tracks behave as a static scene. */
+  tracks?: TimelineTrack[];
 }
 
 export interface Project {
