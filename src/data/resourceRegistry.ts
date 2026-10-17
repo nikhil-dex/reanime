@@ -278,3 +278,55 @@ export async function discoverCharacterResources(): Promise<{ resources: Charact
   }
   return { resources: loaded, warnings };
 }
+
+export interface MediaResourceIndex {
+  backgrounds?: Record<string, string>;
+  expressions?: Record<string, string>;
+  eyes?: Record<string, string>;
+  mouths?: Record<string, string>;
+  effects?: Record<string, string>;
+  voices?: Record<string, string>;
+  bgm?: Record<string, string>;
+  sfx?: Record<string, string>;
+}
+
+function isSafePublicAssetPath(path: string): boolean {
+  return path.startsWith("/assets/") && !path.includes("\\\\")
+    && !path.split("/").some((part) => part === "." || part === "..");
+}
+
+/** Loads optional, project-bundled media registries. Missing registry files leave collections empty. */
+export async function discoverMediaResources(): Promise<string[]> {
+  const warnings: string[] = [];
+  let index: MediaResourceIndex;
+  try {
+    const response = await fetch("/assets/media/index.json");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    index = await response.json() as MediaResourceIndex;
+  } catch (error) {
+    warnings.push(`Media registry unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    return warnings;
+  }
+
+  const groups: Array<keyof MediaResourceIndex> = [
+    "backgrounds", "expressions", "eyes", "mouths", "effects", "voices", "bgm", "sfx",
+  ];
+  for (const group of groups) {
+    const target = resourceRegistry[group];
+    for (const key of Object.keys(target)) delete target[key];
+    const entries = index[group];
+    if (entries === undefined) continue;
+    if (!entries || typeof entries !== "object" || Array.isArray(entries)) {
+      warnings.push(`Media registry group '${group}' must be an object.`);
+      continue;
+    }
+    for (const [id, path] of Object.entries(entries)) {
+      if (!/^[A-Za-z0-9_-]+$/.test(id) || typeof path !== "string" || !isSafePublicAssetPath(path)) {
+        warnings.push(`Invalid media registry entry ignored: ${group}.${id}`);
+        continue;
+      }
+      target[id] = path;
+    }
+  }
+  return warnings;
+}
