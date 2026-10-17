@@ -30,6 +30,7 @@ interface EditorState {
   setPlaying: (isPlaying: boolean) => void;
   setPlayhead: (playhead: number) => void;
   updateProjectName: (name: string) => void;
+  loadProject: (project: Project) => void;
   setActiveScene: (sceneId: string) => void;
   addScene: () => void;
   duplicateScene: (sceneId: string) => void;
@@ -86,6 +87,17 @@ export const useEditorStore = create<EditorState>((set) => ({
   setPlayhead: (playhead) => set({ playhead }),
   updateProjectName: (name) =>
     set((state) => ({ project: { ...state.project, name } })),
+  loadProject: (project) =>
+    set({
+      project: structuredClone(project),
+      activeSceneId: project.scenes[0]?.id ?? "",
+      selectedObjectId: project.scenes[0]?.characters[0]?.id ?? null,
+      isPlaying: false,
+      playhead: 0,
+      previewId: null,
+      previewPlaying: false,
+      previewElapsed: 0,
+    }),
   setActiveScene: (sceneId) =>
     set((state) => {
       const scene = state.project.scenes.find((item) => item.id === sceneId);
