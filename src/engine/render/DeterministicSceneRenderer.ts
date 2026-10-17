@@ -77,12 +77,17 @@ export class DeterministicSceneRenderer {
 
     app.renderer.render({ container: this.stage });
     const canvas = app.renderer.extract.canvas({ target: this.stage });
-    if ("convertToBlob" in canvas && typeof canvas.convertToBlob === "function") {
-      return canvas.convertToBlob({ type: "image/png" });
-    }
-    if ("toBlob" in canvas && typeof canvas.toBlob === "function") {
+    const convertToBlob = "convertToBlob" in canvas && typeof canvas.convertToBlob === "function"
+      ? canvas.convertToBlob.bind(canvas)
+      : undefined;
+    if (convertToBlob) return convertToBlob({ type: "image/png" });
+
+    const toBlob = "toBlob" in canvas && typeof canvas.toBlob === "function"
+      ? canvas.toBlob.bind(canvas)
+      : undefined;
+    if (toBlob) {
       return new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((blob) => {
+        toBlob((blob) => {
           if (blob) resolve(blob);
           else reject(new Error("PixiJS could not encode the rendered frame as PNG."));
         }, "image/png");
