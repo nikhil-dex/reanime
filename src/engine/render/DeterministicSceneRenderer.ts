@@ -76,7 +76,8 @@ export class DeterministicSceneRenderer {
     }
 
     app.renderer.render({ container: this.stage });
-    const canvas = app.renderer.extract.canvas({ target: this.stage });
+    // Export the fixed-size renderer canvas, not extracted stage bounds. Character sprites can extend beyond the project frame.
+    const canvas = app.canvas;
     const convertToBlob = "convertToBlob" in canvas && typeof canvas.convertToBlob === "function"
       ? canvas.convertToBlob.bind(canvas)
       : undefined;
