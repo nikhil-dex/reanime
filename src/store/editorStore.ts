@@ -30,6 +30,13 @@ interface EditorState {
   setPlaying: (isPlaying: boolean) => void;
   setPlayhead: (playhead: number) => void;
   updateProjectName: (name: string) => void;
+  setActiveScene: (sceneId: string) => void;
+  addScene: () => void;
+  duplicateScene: (sceneId: string) => void;
+  deleteScene: (sceneId: string) => void;
+  renameScene: (sceneId: string, name: string) => void;
+  updateSceneDuration: (sceneId: string, duration: number) => void;
+  moveScene: (sceneId: string, direction: -1 | 1) => void;
   resetProject: () => void;
   setResourcesReady: (calibration: CharacterCalibration) => void;
   refreshResources: () => Promise<void>;
@@ -79,6 +86,78 @@ export const useEditorStore = create<EditorState>((set) => ({
   setPlayhead: (playhead) => set({ playhead }),
   updateProjectName: (name) =>
     set((state) => ({ project: { ...state.project, name } })),
+  setActiveScene: (sceneId) =>
+    set((state) => {
+      const scene = state.project.scenes.find((item) => item.id === sceneId);
+      if (!scene) return state;
+      return { activeSceneId: sceneId, selectedObjectId: scene.characters[0]?.id ?? null, isPlaying: false, playhead: 0 };
+    }),
+  addScene: () =>
+    set((state) => {
+      const previous = state.project.scenes.find((item) => item.id === state.activeSceneId) ?? state.project.scenes[state.project.scenes.length - 1];
+      const stamp = Date.now();
+      const index = state.project.scenes.length + 1;
+      const characters = previous ? structuredClone(previous.characters).map((character, i) => ({ ...character, id: `${character.characterId}-${stamp}-${i + 1}` })) : [];
+      const scene = {
+        id: `scene-${stamp}-${index}`,
+        name: `Scene ${index}`,
+        duration: previous?.duration ?? 12,
+        background: previous?.background ?? "placeholder",
+        characters,
+        camera: previous ? structuredClone(previous.camera) : { position: { x: 0.5, y: 0.5 }, zoom: 1 },
+        subtitles: previous ? [...previous.subtitles] : [],
+        audio: previous ? [...previous.audio] : [],
+      };
+      return { project: { ...state.project, scenes: [...state.project.scenes, scene] }, activeSceneId: scene.id, selectedObjectId: characters[0]?.id ?? null, isPlaying: false, playhead: 0 };
+    }),
+  duplicateScene: (sceneId) =>
+    set((state) => {
+      const index = state.project.scenes.findIndex((item) => item.id === sceneId);
+      if (index < 0) return state;
+      const source = state.project.scenes[index];
+      const stamp = Date.now();
+      const duplicate = {
+        ...structuredClone(source),
+        id: `scene-${stamp}-copy`,
+        name: `${source.name} Copy`,
+        characters: source.characters.map((character, i) => ({ ...structuredClone(character), id: `${character.characterId}-${stamp}-${i + 1}` })),
+      };
+      const scenes = [...state.project.scenes];
+      scenes.splice(index + 1, 0, duplicate);
+      return { project: { ...state.project, scenes }, activeSceneId: duplicate.id, selectedObjectId: duplicate.characters[0]?.id ?? null, isPlaying: false, playhead: 0 };
+    }),
+  deleteScene: (sceneId) =>
+    set((state) => {
+      if (state.project.scenes.length <= 1) return state;
+      const index = state.project.scenes.findIndex((item) => item.id === sceneId);
+      if (index < 0) return state;
+      const scenes = state.project.scenes.filter((item) => item.id !== sceneId);
+      const wasActive = state.activeSceneId === sceneId;
+      const nextActive = wasActive ? scenes[Math.min(index, scenes.length - 1)] : scenes.find((item) => item.id === state.activeSceneId)!;
+      return { project: { ...state.project, scenes }, activeSceneId: nextActive.id, selectedObjectId: wasActive ? nextActive.characters[0]?.id ?? null : state.selectedObjectId, isPlaying: false, playhead: 0 };
+    }),
+  renameScene: (sceneId, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    set((state) => ({ project: { ...state.project, scenes: state.project.scenes.map((scene) => scene.id === sceneId ? { ...scene, name: trimmed } : scene) } }));
+  },
+  updateSceneDuration: (sceneId, duration) => {
+    if (!Number.isFinite(duration)) return;
+    const safeDuration = Math.min(600, Math.max(0.1, duration));
+    set((state) => ({
+      project: { ...state.project, scenes: state.project.scenes.map((scene) => scene.id === sceneId ? { ...scene, duration: safeDuration } : scene) },
+      ...(state.activeSceneId === sceneId ? { playhead: Math.min(state.playhead, safeDuration) } : {}),
+    }));
+  },
+  moveScene: (sceneId, direction) =>
+    set((state) => {
+      const index = state.project.scenes.findIndex((item) => item.id === sceneId);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= state.project.scenes.length) return state;
+      const scenes = [...state.project.scenes];
+      [scenes[index], scenes[target]] = [scenes[target], scenes[index]];
+      return { project: { ...state.project, scenes } };
+    }),
   resetProject: () =>
     set({
       project: structuredClone(initialProject),

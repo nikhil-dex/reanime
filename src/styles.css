@@ -212,3 +212,31 @@ button:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
   .top-actions .text-action:first-child { display: none; }
   .statusbar > span:last-child { display: none; }
 }
+
+
+/* Functional scene timeline */
+.scene-strip { height: 42px; display: flex; align-items: center; gap: 8px; padding: 4px 9px; border-bottom: 1px solid var(--line); background: #191a22; }
+.scene-strip-label { flex: 0 0 auto; color: #777885; font-size: 8px; font-weight: 700; letter-spacing: .7px; }
+.scene-tabs { display: flex; align-items: stretch; gap: 5px; flex: 1; min-width: 0; height: 31px; overflow-x: auto; scrollbar-width: thin; }
+.scene-tab { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; max-width: 190px; min-width: 108px; padding: 0 8px; border: 1px solid #343541; border-radius: 4px; color: #a6a6b4; background: #20212b; text-align: left; font-size: 9px; }
+.scene-tab:hover { border-color: #625a86; color: #e5e2f5; }
+.scene-tab.active { border-color: #7768b8; color: #e1dcff; background: #302b45; box-shadow: inset 0 -2px #9b8bf1; }
+.scene-tab-index { color: #9284d7; font-family: ui-monospace,monospace; font-size: 8px; }
+.scene-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-tab small { margin-left: auto; color: #858596; font-size: 8px; }
+.scene-actions { display: flex; flex: 0 0 auto; gap: 2px; }
+.scene-action-button { width: 23px; height: 25px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 4px; color: #a6a5b5; background: transparent; font-size: 15px; line-height: 1; }
+.scene-action-button:hover:not(:disabled) { border-color: #48445f; color: #e4dfff; background: #292638; }
+.scene-action-button.add { border-color: #514875; color: #d5ccff; background: #302a45; font-size: 18px; }
+.scene-action-button.danger:hover:not(:disabled) { border-color: #75444b; color: #ffb8bd; background: #3a252c; }
+.scene-action-button:disabled { opacity: .3; cursor: not-allowed; }
+.scene-duration-control { display: flex; align-items: center; gap: 4px; color: #777885; font-size: 8px; }
+.scene-duration-control input { width: 49px; padding: 4px 3px; border: 1px solid #343541; border-radius: 3px; outline: none; color: #d1d0dc; background: #20212b; font-size: 9px; }
+.scene-duration-control input:focus { border-color: #7768b8; }
+.timeline-body { height: calc(100% - 91px); }
+@media (max-width: 900px) {
+  .scene-strip { gap: 5px; padding-inline: 6px; }
+  .scene-strip-label { display: none; }
+  .scene-actions { gap: 0; }
+  .scene-action-button { width: 20px; }
+}
