@@ -1,4 +1,4 @@
-import { Application, Container, Graphics } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite } from "pixi.js";
 import type { Scene } from "../../types/project";
 import { resourceRegistry } from "../../data/resourceRegistry";
 import { CharacterRenderer } from "../pixi/CharacterRenderer";
@@ -51,6 +51,20 @@ export class DeterministicSceneRenderer {
     this.stage.addChild(new Graphics()
       .rect(0, 0, this.options.width, this.options.height)
       .fill({ color: this.options.backgroundColor ?? 0x151720 }));
+
+    const backgroundPath = resourceRegistry.backgrounds[scene.background];
+    if (backgroundPath) {
+      const texture = await Assets.load(backgroundPath);
+      const background = new Sprite(texture);
+      background.anchor.set(0.5);
+      background.position.set(this.options.width / 2, this.options.height / 2);
+      const coverScale = Math.max(
+        this.options.width / texture.width,
+        this.options.height / texture.height,
+      );
+      background.scale.set(coverScale);
+      this.stage.addChildAt(background, 1);
+    }
 
     const orderedCharacters = [...scene.characters]
       .filter((character) => character.visible)
