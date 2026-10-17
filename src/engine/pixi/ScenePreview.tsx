@@ -5,7 +5,7 @@ import { useEditorStore } from "../../store/editorStore";
 import { CharacterRenderer } from "./CharacterRenderer";
 import { loadPreviews, previewRuntime, type AnimationPreview } from "../../data/animationPreviews";
 
-type Redraw = (width: number, height: number) => Promise<void>;
+type Redraw = (width?: number, height?: number) => Promise<void>;
 
 interface PreviewState {
   preview?: AnimationPreview;
@@ -95,7 +95,9 @@ export function ScenePreview() {
       const sceneLayer = new Container();
       pixiApp.stage.addChild(sceneLayer);
 
-      redraw = async (width: number, height: number) => {
+      redraw = async (requestedWidth = host.clientWidth, requestedHeight = host.clientHeight) => {
+        const width = Math.max(requestedWidth, 1);
+        const height = Math.max(requestedHeight, 1);
         const sequence = ++redrawSequence;
         initializationStage = "rendering scene";
         if (disposed || !pixiApp.renderer) return;
@@ -238,7 +240,7 @@ export function ScenePreview() {
     if (!previewPlaying || !preview) return;
     let frame = 0;
     let last = performance.now();
-    let elapsed = previewElapsed;
+    let elapsed = previewStateRef.current.elapsed;
 
     const animate = (now: number) => {
       const live = previewStateRef.current;
@@ -267,7 +269,7 @@ export function ScenePreview() {
 
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [previewPlaying, preview, previewElapsed, setPreviewElapsed, setPreviewPlaying]);
+  }, [previewPlaying, preview, setPreviewElapsed, setPreviewPlaying]);
 
   return <div className="pixi-host" ref={hostRef} aria-label="PixiJS scene preview" />;
 }
