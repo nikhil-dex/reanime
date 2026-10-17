@@ -3,6 +3,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import type { Project } from "../../types/project";
 import { DeterministicSceneRenderer } from "./DeterministicSceneRenderer";
 import { renderProjectFrames } from "./renderProjectFrames";
+import { renderTimelineAudio } from "./renderTimelineAudio";
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -64,6 +65,13 @@ export async function exportProjectToMp4(
         });
       },
     });
+    const audioBlob = await renderTimelineAudio(project);
+    if (audioBlob) {
+      await invoke("write_video_audio", {
+        sessionId,
+        wavBase64: await blobToBase64(audioBlob),
+      });
+    }
     const savedPath = await invoke<string>("finish_video_render", {
       sessionId,
       outputPath,
