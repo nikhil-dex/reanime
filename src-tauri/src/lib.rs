@@ -1,8 +1,11 @@
 use serde::Serialize;
 use serde_json::Value;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use std::{
-    collections::{BTreeSet, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     fs, io,
+    process::Command,
+    sync::{atomic::{AtomicU64, Ordering}, Mutex},
     path::{Component, Path, PathBuf},
 };
 use tauri::Manager;
@@ -1037,9 +1040,114 @@ fn is_character_package_installed(
         .any(|package| package.package_id == package_id || package.character_id == package_id))
 }
 
+
+struct RenderSession {
+    directory: TempDir,
+    fps: u32,
+    next_frame: u64,
+}
+
+#[derive(Default)]
+struct RenderSessionStore(Mutex<HashMap<String, RenderSession>>);
+
+static NEXT_RENDER_SESSION: AtomicU64 = AtomicU64::new(1);
+
+#[tauri::command]
+fn begin_video_render(
+    fps: u32,
+    sessions: tauri::State<'_, RenderSessionStore>,
+) -> Result<String, String> {
+    if !(1..=240).contains(&fps) {
+        return Err("Render FPS must be between 1 and 240.".into());
+    }
+    let id = format!("render-{}-{}", std::process::id(), NEXT_RENDER_SESSION.fetch_add(1, Ordering::Relaxed));
+    let directory = tempfile::Builder::new()
+        .prefix("re-anime-render-")
+        .tempdir()
+        .map_err(|error| format!("unable to create render workspace: {error}"))?;
+    let session = RenderSession { directory, fps, next_frame: 0 };
+    sessions.0.lock().map_err(|_| "render session lock is unavailable".to_string())?
+        .insert(id.clone(), session);
+    Ok(id)
+}
+
+#[tauri::command]
+fn write_video_frame(
+    session_id: String,
+    frame_index: u64,
+    png_base64: String,
+    sessions: tauri::State<'_, RenderSessionStore>,
+) -> Result<(), String> {
+    if png_base64.len() > 40 * 1024 * 1024 {
+        return Err("Encoded frame is too large (40 MiB limit).".into());
+    }
+    let bytes = BASE64.decode(png_base64.as_bytes())
+        .map_err(|_| "Frame payload is not valid base64.".to_string())?;
+    if bytes.len() < 8 || &bytes[..8] != b"\x89PNG\r\n\x1a\n" {
+        return Err("Frame payload is not a valid PNG.".into());
+    }
+    let mut guard = sessions.0.lock().map_err(|_| "render session lock is unavailable".to_string())?;
+    let session = guard.get_mut(&session_id).ok_or("render session not found")?;
+    if frame_index != session.next_frame {
+        return Err(format!("Expected frame {}, received {}.", session.next_frame, frame_index));
+    }
+    let path = session.directory.path().join(format!("frame_{:08}.png", frame_index));
+    fs::write(path, bytes).map_err(|error| format!("unable to write frame: {error}"))?;
+    session.next_frame += 1;
+    Ok(())
+}
+
+#[tauri::command]
+fn finish_video_render(
+    session_id: String,
+    output_path: String,
+    sessions: tauri::State<'_, RenderSessionStore>,
+) -> Result<String, String> {
+    let session = sessions.0.lock().map_err(|_| "render session lock is unavailable".to_string())?
+        .remove(&session_id).ok_or("render session not found")?;
+    if session.next_frame == 0 {
+        return Err("Cannot export a video with no frames.".into());
+    }
+    let output = PathBuf::from(&output_path);
+    if output.extension().and_then(|ext| ext.to_str()).map(|ext| ext.eq_ignore_ascii_case("mp4")) != Some(true) {
+        return Err("Choose an output filename ending in .mp4.".into());
+    }
+    let pattern = session.directory.path().join("frame_%08d.png");
+    let result = Command::new("ffmpeg")
+        .arg("-hide_banner").arg("-loglevel").arg("error").arg("-y")
+        .arg("-framerate").arg(session.fps.to_string())
+        .arg("-i").arg(pattern)
+        .arg("-frames:v").arg(session.next_frame.to_string())
+        .arg("-c:v").arg("libx264")
+        .arg("-pix_fmt").arg("yuv420p")
+        .arg("-movflags").arg("+faststart")
+        .arg(&output)
+        .output()
+        .map_err(|error| format!("Unable to start FFmpeg. Install FFmpeg and make sure it is on PATH: {error}"))?;
+    if !result.status.success() {
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        return Err(format!("FFmpeg failed to encode MP4: {}", stderr.trim()));
+    }
+    if !output.is_file() {
+        return Err("FFmpeg reported success but the MP4 file was not created.".into());
+    }
+    Ok(output.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn cancel_video_render(
+    session_id: String,
+    sessions: tauri::State<'_, RenderSessionStore>,
+) -> Result<(), String> {
+    sessions.0.lock().map_err(|_| "render session lock is unavailable".to_string())?
+        .remove(&session_id).ok_or("render session not found")?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(RenderSessionStore::default())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             character_library_dir,
@@ -1050,7 +1158,11 @@ pub fn run() {
             preview_character_package,
             install_character_package,
             remove_character_package,
-            is_character_package_installed
+            is_character_package_installed,
+            begin_video_render,
+            write_video_frame,
+            finish_video_render,
+            cancel_video_render
         ])
         .run(tauri::generate_context!())
         .expect("error while running Re:Anime");
