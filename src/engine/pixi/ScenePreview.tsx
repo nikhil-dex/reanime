@@ -4,6 +4,7 @@ import { discoverCharacterResources, resourceRegistry } from "../../data/resourc
 import { useEditorStore } from "../../store/editorStore";
 import { CharacterRenderer } from "./CharacterRenderer";
 import { loadPreviews, previewRuntime, type AnimationPreview } from "../../data/animationPreviews";
+import { evaluateSceneAtTime } from "../timeline/evaluateSceneAtTime";
 
 type Redraw = (width?: number, height?: number) => Promise<void>;
 
@@ -19,6 +20,9 @@ interface PreviewState {
 export function ScenePreview() {
   const hostRef = useRef<HTMLDivElement>(null);
   const redrawRef = useRef<Redraw | null>(null);
+  const playhead = useEditorStore((state) => state.playhead);
+  const timelineTimeRef = useRef(0);
+  timelineTimeRef.current = playhead;
   const previewStateRef = useRef<PreviewState>({
     playing: false,
     loop: false,
@@ -120,7 +124,8 @@ export function ScenePreview() {
           sceneLayer.addChild(guides);
         }
 
-        for (const instance of scene?.characters ?? []) {
+        const evaluatedScene = scene ? evaluateSceneAtTime(scene, timelineTimeRef.current).scene : undefined;
+        for (const instance of evaluatedScene?.characters ?? []) {
           const resource = resourceRegistry.characters[instance.characterId];
           const versionedResource = instance.packageVersion
             ? resourceRegistry.packages[`${instance.characterId}@${instance.packageVersion}`]
@@ -234,6 +239,11 @@ export function ScenePreview() {
     updateCalibration,
     updatePivot,
   ]);
+
+  // Timeline scrubbing redraws the existing Pixi stage without recreating the Application.
+  useEffect(() => {
+    void redrawRef.current?.();
+  }, [playhead]);
 
   // Playback redraws the existing Pixi stage; it never recreates the Application per frame.
   useEffect(() => {
