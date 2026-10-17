@@ -1,4 +1,5 @@
 import type { Project } from "../../types/project";
+import { evaluateSceneAtTime } from "../timeline/evaluateSceneAtTime";
 import { createRenderPlan } from "./renderPlan";
 import { iterateScheduledFrames, renderProgress, type RenderProgress } from "./renderJob";
 import type { DeterministicSceneRenderer } from "./DeterministicSceneRenderer";
@@ -10,19 +11,13 @@ export interface RenderProjectOptions {
   signal?: AbortSignal;
 }
 
-/**
- * Streams scheduled frames in deterministic output order without retaining
- * the full video in memory. Because the current project model has no animation
- * tracks, render each scene once and reuse that PNG for its frame range.
- * Replace this cache with per-frame rendering when timed animation is added.
- */
+/** Renders every frame from the same deterministic timeline evaluator used by preview tooling. */
 export async function renderProjectFrames(
   project: Project,
   options: RenderProjectOptions,
 ): Promise<{ totalFrames: number; durationSeconds: number }> {
   const plan = createRenderPlan(project);
   let completedFrames = 0;
-  const sceneFrames = new Map<string, Blob>();
   options.onProgress?.(renderProgress(0, plan.totalFrames));
 
   try {
@@ -32,11 +27,8 @@ export async function renderProjectFrames(
         throw new DOMException("Render cancelled.", "AbortError");
       }
 
-      let frame = sceneFrames.get(scheduled.scene.id);
-      if (!frame) {
-        frame = await options.renderer.renderScene(scheduled.scene);
-        sceneFrames.set(scheduled.scene.id, frame);
-      }
+      const evaluated = evaluateSceneAtTime(scheduled.scene, scheduled.sceneFrame / plan.fps);
+      const frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects);
       if (options.signal?.aborted) {
         throw new DOMException("Render cancelled.", "AbortError");
       }
@@ -47,7 +39,6 @@ export async function renderProjectFrames(
     }
     return { totalFrames: plan.totalFrames, durationSeconds: plan.durationSeconds };
   } finally {
-    sceneFrames.clear();
     options.renderer.destroy();
   }
 }
