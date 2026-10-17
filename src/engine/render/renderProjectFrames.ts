@@ -39,7 +39,7 @@ export async function renderProjectFrames(
         }
       } else {
         const evaluated = evaluateSceneAtTime(scheduled.scene, scheduled.sceneFrame / plan.fps);
-        frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects);
+        frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects, evaluated.activeSubtitles);
       }
       if (options.signal?.aborted) {
         throw new DOMException("Render cancelled.", "AbortError");
