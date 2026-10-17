@@ -3,7 +3,7 @@ import { initialProject } from "../data/sampleScene";
 import type { Project } from "../types/project";
 import type { CalibrationLayer, CalibrationPivot, CalibrationTransform, CharacterCalibration, PivotTarget } from "../types/project";
 import { createDefaultCalibration, isValidStoredCalibration, parsePackageCalibration } from "../data/characterCalibration";
-import { discoverCharacterResources } from "../data/resourceRegistry";
+import { discoverCharacterResources, discoverMediaResources } from "../data/resourceRegistry";
 import { resourceRegistry } from "../data/resourceRegistry";
 
 interface EditorState {
@@ -193,6 +193,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   setResourcesReady: (calibration) => set({ calibration, calibrationBaseline: calibration, resourcesReady: true }),
   refreshResources: async () => {
     const { resources, warnings } = await discoverCharacterResources();
+    const mediaWarnings = await discoverMediaResources();
+    if (mediaWarnings.length) console.warn(...mediaWarnings);
     const active = resources.sort((a, b) => (b.packageVersion ?? "0").localeCompare(a.packageVersion ?? "0", undefined, { numeric: true }))[0];
     if (warnings.length) console.warn(...warnings);
     if (active) {
