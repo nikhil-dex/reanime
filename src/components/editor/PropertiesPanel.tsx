@@ -147,10 +147,10 @@ export function PropertiesPanel() {
                 <label className="control-field" key={key}><span>{key === "rotation" ? "Rotation (°)" : key === "opacity" ? "Layer Opacity" : key}</span><input className="calibration-input" type="number" step={key === "opacity" ? 0.01 : key.startsWith("scale") ? 0.01 : 1} min={key === "opacity" ? 0 : undefined} max={key === "opacity" ? 1 : undefined} value={transform[key]} onChange={(event) => updateTransform(key, Number(event.target.value))} /></label>
               ))}
               {pivotTarget && pivot && <div className="pivot-controls">
-                <div className="property-title"><span>HEAD GROUP PIVOT</span><Icon name="chevron" /></div>
-                <label className="control-field"><span>Pivot X</span><input className="calibration-input" type="number" min="0" max="1" step="0.01" value={pivot.x} onChange={(event) => updatePivot(pivotTarget, { x: Number(event.target.value) })} /></label>
-                <label className="control-field"><span>Pivot Y</span><input className="calibration-input" type="number" min="0" max="1" step="0.01" value={pivot.y} onChange={(event) => updatePivot(pivotTarget, { y: Number(event.target.value) })} /></label>
-                <button className="select-field" onClick={() => resetPivot(pivotTarget)}>Reset Pivot</button>
+                <div className="property-title"><span>NECK PIVOT · HEAD ROTATION</span><Icon name="chevron" /></div>
+                <label className="control-field"><span>Neck Pivot X (0–1)</span><input className="calibration-input" type="number" min="0" max="1" step="0.01" value={pivot.x} onChange={(event) => updatePivot(pivotTarget, { x: Number(event.target.value) })} /></label>
+                <label className="control-field"><span>Neck Pivot Y (0–1)</span><input className="calibration-input" type="number" min="0" max="1" step="0.01" value={pivot.y} onChange={(event) => updatePivot(pivotTarget, { y: Number(event.target.value) })} /></label>
+                <button className="select-field" onClick={() => resetPivot(pivotTarget)}>Reset Neck Pivot</button><small className="inspector-tip-text">Drag the yellow pivot marker on the character preview, or enter normalized X/Y values. The pivot is saved with this character package calibration.</small>
               </div>}
               <div className="calibration-actions"><button className="select-field" onClick={resetCalibrationLayer}>Reset Layer</button><button className="select-field" onClick={resetAllCalibration}>Reset All</button></div>
               <div className="calibration-actions"><button className="select-field" onClick={saveCalibration}>Save Calibration</button><button className="select-field" onClick={exportCalibration}>Export</button></div>
