@@ -18,6 +18,7 @@ export async function renderProjectFrames(
 ): Promise<{ totalFrames: number; durationSeconds: number }> {
   const plan = createRenderPlan(project);
   let completedFrames = 0;
+  const staticSceneFrames = new Map<string, Blob>();
   options.onProgress?.(renderProgress(0, plan.totalFrames));
 
   try {
@@ -27,8 +28,19 @@ export async function renderProjectFrames(
         throw new DOMException("Render cancelled.", "AbortError");
       }
 
-      const evaluated = evaluateSceneAtTime(scheduled.scene, scheduled.sceneFrame / plan.fps);
-      const frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects);
+      let frame: Blob;
+      if (!scheduled.scene.tracks?.length) {
+        const cached = staticSceneFrames.get(scheduled.scene.id);
+        if (cached) frame = cached;
+        else {
+          const evaluated = evaluateSceneAtTime(scheduled.scene, scheduled.sceneFrame / plan.fps);
+          frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects);
+          staticSceneFrames.set(scheduled.scene.id, frame);
+        }
+      } else {
+        const evaluated = evaluateSceneAtTime(scheduled.scene, scheduled.sceneFrame / plan.fps);
+        frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects);
+      }
       if (options.signal?.aborted) {
         throw new DOMException("Render cancelled.", "AbortError");
       }
@@ -39,6 +51,7 @@ export async function renderProjectFrames(
     }
     return { totalFrames: plan.totalFrames, durationSeconds: plan.durationSeconds };
   } finally {
+    staticSceneFrames.clear();
     options.renderer.destroy();
   }
 }
