@@ -11,10 +11,10 @@ export interface RenderProjectOptions {
 }
 
 /**
- * Renders project frames in their deterministic output order. Frames are
- * handed to the caller one at a time instead of accumulated in memory, so an
- * encoder can consume them incrementally. Animation tracks are not yet part
- * of the project model; each scene currently renders its saved static state.
+ * Streams scheduled frames in deterministic output order without retaining
+ * the full video in memory. Because the current project model has no animation
+ * tracks, render each scene once and reuse that PNG for its frame range.
+ * Replace this cache with per-frame rendering when timed animation is added.
  */
 export async function renderProjectFrames(
   project: Project,
@@ -22,6 +22,7 @@ export async function renderProjectFrames(
 ): Promise<{ totalFrames: number; durationSeconds: number }> {
   const plan = createRenderPlan(project);
   let completedFrames = 0;
+  const sceneFrames = new Map<string, Blob>();
   options.onProgress?.(renderProgress(0, plan.totalFrames));
 
   try {
@@ -30,16 +31,23 @@ export async function renderProjectFrames(
       if (options.signal?.aborted) {
         throw new DOMException("Render cancelled.", "AbortError");
       }
-      const frame = await options.renderer.renderScene(scheduled.scene);
+
+      let frame = sceneFrames.get(scheduled.scene.id);
+      if (!frame) {
+        frame = await options.renderer.renderScene(scheduled.scene);
+        sceneFrames.set(scheduled.scene.id, frame);
+      }
       if (options.signal?.aborted) {
         throw new DOMException("Render cancelled.", "AbortError");
       }
+
       await options.onFrame(frame, scheduled.frame);
       completedFrames += 1;
       options.onProgress?.(renderProgress(completedFrames, plan.totalFrames));
     }
     return { totalFrames: plan.totalFrames, durationSeconds: plan.durationSeconds };
   } finally {
+    sceneFrames.clear();
     options.renderer.destroy();
   }
 }
