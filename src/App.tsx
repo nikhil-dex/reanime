@@ -5,7 +5,7 @@ import { Icon } from "./components/common/Icon";
 import { Timeline } from "./components/timeline/Timeline";
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { Project, Scene } from "./types/project";
+import type { Project } from "./types/project";
 import { useEditorStore } from "./store/editorStore";
 
 function downloadProject(project: ReturnType<typeof useEditorStore.getState>["project"]) {
