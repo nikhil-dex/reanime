@@ -1,4 +1,4 @@
-import { Application, Assets, Container, Graphics, Sprite } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Text } from "pixi.js";
 import type { Scene, TimelineClip } from "../../types/project";
 import { resourceRegistry } from "../../data/resourceRegistry";
 import { CharacterRenderer } from "../pixi/CharacterRenderer";
@@ -39,7 +39,7 @@ export class DeterministicSceneRenderer {
     app.stage.addChild(this.stage);
   }
 
-  async renderScene(scene: Scene, activeEffects: TimelineClip[] = []): Promise<Blob> {
+  async renderScene(scene: Scene, activeEffects: TimelineClip[] = [], activeSubtitles: TimelineClip[] = []): Promise<Blob> {
     if (!this.app) throw new Error("Export renderer is not initialized.");
     const app = this.app;
     this.stage.removeChildren().forEach((child) => child.destroy({ children: true }));
@@ -93,6 +93,35 @@ export class DeterministicSceneRenderer {
       effect.scale.set(scale);
       effect.alpha = Math.min(1, Math.max(0, opacity));
       this.stage.addChild(effect);
+    }
+
+    for (const clip of activeSubtitles) {
+      const properties = clip.properties ?? {};
+      const content = typeof properties.text === "string" ? properties.text : "";
+      if (!content.trim()) continue;
+      const fontSize = typeof properties.fontSize === "number" && properties.fontSize > 0
+        ? Math.min(256, properties.fontSize)
+        : 48;
+      const color = typeof properties.color === "string" ? properties.color : "#ffffff";
+      const x = typeof properties.x === "number" ? properties.x : 0.5;
+      const y = typeof properties.y === "number" ? properties.y : 0.88;
+      const anchorX = typeof properties.anchorX === "number" ? properties.anchorX : 0.5;
+      const text = new Text({
+        text: content,
+        style: {
+          fontFamily: "Arial, sans-serif",
+          fontSize,
+          fill: color,
+          fontWeight: "bold",
+          align: "center",
+          wordWrap: true,
+          wordWrapWidth: this.options.width * 0.9,
+          stroke: { color: "#000000", width: Math.max(2, fontSize * 0.08) },
+        },
+      });
+      text.anchor.set(Math.min(1, Math.max(0, anchorX)), 0.5);
+      text.position.set(x <= 1 ? x * this.options.width : x, y <= 1 ? y * this.options.height : y);
+      this.stage.addChild(text);
     }
 
     app.renderer.render({ container: this.stage });
