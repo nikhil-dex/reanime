@@ -5,7 +5,7 @@ import { Icon } from "./components/common/Icon";
 import { Timeline } from "./components/timeline/Timeline";
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import type { Project } from "./types/project";
+import type { Project, TimelineTrack } from "./types/project";
 import { useEditorStore } from "./store/editorStore";
 import { exportProjectToMp4, type ExportProgress } from "./engine/render/exportProjectToMp4";
 
@@ -23,6 +23,46 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const trackKinds = new Set(["character", "background", "expression", "effect", "audio", "subtitle"]);
+
+function validateTimelineTracks(value: unknown, duration: number): asserts value is TimelineTrack[] | undefined {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) throw new Error("Scene timeline tracks must be an array.");
+  const trackIds = new Set<string>();
+  for (const track of value) {
+    if (!isRecord(track) || typeof track.id !== "string" || !track.id.trim() || trackIds.has(track.id)
+      || typeof track.name !== "string" || !trackKinds.has(String(track.kind)) || !Array.isArray(track.keyframes)) {
+      throw new Error("A timeline track has an invalid ID, name, kind, or keyframe list.");
+    }
+    trackIds.add(track.id);
+    if (track.targetId !== undefined && typeof track.targetId !== "string") throw new Error("Timeline target IDs must be strings.");
+    for (const frame of track.keyframes) {
+      if (!isRecord(frame) || !Number.isFinite(frame.time) || (frame.time as number) < 0
+        || (frame.time as number) > duration || typeof frame.property !== "string" || !frame.property.trim()
+        || !(frame.value === null || ["string", "number", "boolean"].includes(typeof frame.value))
+        || (typeof frame.value === "number" && !Number.isFinite(frame.value))
+        || (frame.interpolation !== undefined && frame.interpolation !== "linear" && frame.interpolation !== "hold")) {
+        throw new Error("A timeline keyframe has an invalid time, property, value, or interpolation mode.");
+      }
+    }
+    if (track.clips !== undefined) {
+      if (!Array.isArray(track.clips)) throw new Error("Timeline clips must be an array.");
+      const clipIds = new Set<string>();
+      for (const clip of track.clips) {
+        if (!isRecord(clip) || typeof clip.id !== "string" || !clip.id.trim() || clipIds.has(clip.id)
+          || !Number.isFinite(clip.start) || (clip.start as number) < 0
+          || !Number.isFinite(clip.duration) || (clip.duration as number) <= 0
+          || (clip.start as number) + (clip.duration as number) > duration
+          || (clip.resourceId !== undefined && typeof clip.resourceId !== "string")
+          || (clip.properties !== undefined && !isRecord(clip.properties))) {
+          throw new Error("A timeline clip has an invalid ID, time range, resource, or properties.");
+        }
+        clipIds.add(clip.id);
+      }
+    }
+  }
+}
+
 function validateProject(value: unknown): Project {
   if (!isRecord(value)) throw new Error("The file must contain a project object.");
   if (typeof value.name !== "string" || !value.name.trim()) throw new Error("Project name is missing.");
@@ -37,6 +77,7 @@ function validateProject(value: unknown): Project {
     if (!Number.isFinite(item.duration) || (item.duration as number) <= 0 || (item.duration as number) > 600) throw new Error("Scene durations must be greater than 0 and no more than 600 seconds.");
     if (typeof item.background !== "string" || !Array.isArray(item.characters) || !isRecord(item.camera) || !Array.isArray(item.subtitles) || !Array.isArray(item.audio)) throw new Error("A scene is missing required fields.");
     if (!isRecord(item.camera.position) || !Number.isFinite(item.camera.position.x) || !Number.isFinite(item.camera.position.y) || !Number.isFinite(item.camera.zoom)) throw new Error("A scene camera is invalid.");
+    validateTimelineTracks(item.tracks, item.duration as number);
     for (const character of item.characters) {
       if (!isRecord(character) || typeof character.id !== "string" || typeof character.characterId !== "string" || !isRecord(character.position) || !Number.isFinite(character.position.x) || !Number.isFinite(character.position.y) || !Number.isFinite(character.scale) || typeof character.visible !== "boolean" || !Number.isFinite(character.layer)) throw new Error("A character instance is invalid.");
     }
@@ -141,7 +182,7 @@ export default function App() {
         <PropertiesPanel />
       </div>
       {fileError && <div role="alert" className="project-file-error">{fileError}</div>}
-      {renderMessage && <div role={fileError ? "status" : "status"} className="project-file-error">{renderMessage}{renderProgress && <progress max={1} value={renderProgress.progress} aria-label="Video render progress" />}</div>}
+      {renderMessage && <div role="status" className="project-file-error">{renderMessage}{renderProgress && <progress max={1} value={renderProgress.progress} aria-label="Video render progress" />}</div>}
       <footer className="statusbar">
         <span><span className="status-dot" /> All changes local</span>
         <span>1920 × 1080 <i>·</i> 30 FPS</span>

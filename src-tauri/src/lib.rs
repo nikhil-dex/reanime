@@ -1045,6 +1045,7 @@ struct RenderSession {
     directory: TempDir,
     fps: u32,
     next_frame: u64,
+    audio_path: Option<PathBuf>,
 }
 
 #[derive(Default)]
@@ -1065,7 +1066,7 @@ fn begin_video_render(
         .prefix("re-anime-render-")
         .tempdir()
         .map_err(|error| format!("unable to create render workspace: {error}"))?;
-    let session = RenderSession { directory, fps, next_frame: 0 };
+    let session = RenderSession { directory, fps, next_frame: 0, audio_path: None };
     sessions.0.lock().map_err(|_| "render session lock is unavailable".to_string())?
         .insert(id.clone(), session);
     Ok(id)
@@ -1097,6 +1098,29 @@ fn write_video_frame(
     Ok(())
 }
 
+
+#[tauri::command]
+fn write_video_audio(
+    session_id: String,
+    wav_base64: String,
+    sessions: tauri::State<'_, RenderSessionStore>,
+) -> Result<(), String> {
+    if wav_base64.len() > 200 * 1024 * 1024 {
+        return Err("Mixed audio is too large (200 MiB encoded limit).".into());
+    }
+    let bytes = BASE64.decode(wav_base64.as_bytes())
+        .map_err(|_| "Audio payload is not valid base64.".to_string())?;
+    if bytes.len() < 44 || &bytes[..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+        return Err("Audio payload must be a valid WAV file.".into());
+    }
+    let mut guard = sessions.0.lock().map_err(|_| "render session lock is unavailable".to_string())?;
+    let session = guard.get_mut(&session_id).ok_or("render session not found")?;
+    let path = session.directory.path().join("timeline_audio.wav");
+    fs::write(&path, bytes).map_err(|error| format!("unable to write mixed audio: {error}"))?;
+    session.audio_path = Some(path);
+    Ok(())
+}
+
 #[tauri::command]
 fn finish_video_render(
     session_id: String,
@@ -1113,10 +1137,19 @@ fn finish_video_render(
         return Err("Choose an output filename ending in .mp4.".into());
     }
     let pattern = session.directory.path().join("frame_%08d.png");
-    let result = Command::new("ffmpeg")
-        .arg("-hide_banner").arg("-loglevel").arg("error").arg("-y")
+    let mut command = Command::new("ffmpeg");
+    command.arg("-hide_banner").arg("-loglevel").arg("error").arg("-y")
         .arg("-framerate").arg(session.fps.to_string())
-        .arg("-i").arg(pattern)
+        .arg("-i").arg(pattern);
+    if let Some(audio_path) = &session.audio_path {
+        command.arg("-i").arg(audio_path)
+            .arg("-map").arg("0:v:0")
+            .arg("-map").arg("1:a:0")
+            .arg("-c:a").arg("aac")
+            .arg("-b:a").arg("192k")
+            .arg("-shortest");
+    }
+    let result = command
         .arg("-frames:v").arg(session.next_frame.to_string())
         .arg("-c:v").arg("libx264")
         .arg("-pix_fmt").arg("yuv420p")
@@ -1161,6 +1194,7 @@ pub fn run() {
             is_character_package_installed,
             begin_video_render,
             write_video_frame,
+            write_video_audio,
             finish_video_render,
             cancel_video_render
         ])

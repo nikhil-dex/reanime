@@ -1,4 +1,5 @@
 import type { Project } from "../../types/project";
+import { evaluateSceneAtTime } from "../timeline/evaluateSceneAtTime";
 import { createRenderPlan } from "./renderPlan";
 import { iterateScheduledFrames, renderProgress, type RenderProgress } from "./renderJob";
 import type { DeterministicSceneRenderer } from "./DeterministicSceneRenderer";
@@ -10,19 +11,14 @@ export interface RenderProjectOptions {
   signal?: AbortSignal;
 }
 
-/**
- * Streams scheduled frames in deterministic output order without retaining
- * the full video in memory. Because the current project model has no animation
- * tracks, render each scene once and reuse that PNG for its frame range.
- * Replace this cache with per-frame rendering when timed animation is added.
- */
+/** Renders every frame from the same deterministic timeline evaluator used by preview tooling. */
 export async function renderProjectFrames(
   project: Project,
   options: RenderProjectOptions,
 ): Promise<{ totalFrames: number; durationSeconds: number }> {
   const plan = createRenderPlan(project);
   let completedFrames = 0;
-  const sceneFrames = new Map<string, Blob>();
+  const staticSceneFrames = new Map<string, Blob>();
   options.onProgress?.(renderProgress(0, plan.totalFrames));
 
   try {
@@ -32,10 +28,18 @@ export async function renderProjectFrames(
         throw new DOMException("Render cancelled.", "AbortError");
       }
 
-      let frame = sceneFrames.get(scheduled.scene.id);
-      if (!frame) {
-        frame = await options.renderer.renderScene(scheduled.scene);
-        sceneFrames.set(scheduled.scene.id, frame);
+      let frame: Blob;
+      if (!scheduled.scene.tracks?.length) {
+        const cached = staticSceneFrames.get(scheduled.scene.id);
+        if (cached) frame = cached;
+        else {
+          const evaluated = evaluateSceneAtTime(scheduled.scene, scheduled.sceneFrame / plan.fps);
+          frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects, evaluated.activeSubtitles);
+          staticSceneFrames.set(scheduled.scene.id, frame);
+        }
+      } else {
+        const evaluated = evaluateSceneAtTime(scheduled.scene, scheduled.sceneFrame / plan.fps);
+        frame = await options.renderer.renderScene(evaluated.scene, evaluated.activeEffects, evaluated.activeSubtitles);
       }
       if (options.signal?.aborted) {
         throw new DOMException("Render cancelled.", "AbortError");
@@ -47,7 +51,7 @@ export async function renderProjectFrames(
     }
     return { totalFrames: plan.totalFrames, durationSeconds: plan.durationSeconds };
   } finally {
-    sceneFrames.clear();
+    staticSceneFrames.clear();
     options.renderer.destroy();
   }
 }

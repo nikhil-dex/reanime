@@ -3,7 +3,7 @@ import { initialProject } from "../data/sampleScene";
 import type { Project } from "../types/project";
 import type { CalibrationLayer, CalibrationPivot, CalibrationTransform, CharacterCalibration, PivotTarget } from "../types/project";
 import { createDefaultCalibration, isValidStoredCalibration, parsePackageCalibration } from "../data/characterCalibration";
-import { discoverCharacterResources } from "../data/resourceRegistry";
+import { discoverCharacterResources, discoverMediaResources } from "../data/resourceRegistry";
 import { resourceRegistry } from "../data/resourceRegistry";
 
 interface EditorState {
@@ -128,11 +128,23 @@ export const useEditorStore = create<EditorState>((set) => ({
       if (index < 0) return state;
       const source = state.project.scenes[index];
       const stamp = Date.now();
+      const characterIdMap = new Map<string, string>();
+      const duplicatedCharacters = source.characters.map((character, i) => {
+        const id = `${character.characterId}-${stamp}-${i + 1}`;
+        characterIdMap.set(character.id, id);
+        return { ...structuredClone(character), id };
+      });
       const duplicate = {
         ...structuredClone(source),
         id: `scene-${stamp}-copy`,
         name: `${source.name} Copy`,
-        characters: source.characters.map((character, i) => ({ ...structuredClone(character), id: `${character.characterId}-${stamp}-${i + 1}` })),
+        characters: duplicatedCharacters,
+        tracks: source.tracks?.map((track) => ({
+          ...structuredClone(track),
+          id: `${track.id}-copy-${stamp}`,
+          targetId: track.targetId ? characterIdMap.get(track.targetId) ?? track.targetId : undefined,
+          clips: track.clips?.map((clip, clipIndex) => ({ ...structuredClone(clip), id: `${clip.id}-copy-${stamp}-${clipIndex}` })),
+        })),
       };
       const scenes = [...state.project.scenes];
       scenes.splice(index + 1, 0, duplicate);
@@ -181,6 +193,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   setResourcesReady: (calibration) => set({ calibration, calibrationBaseline: calibration, resourcesReady: true }),
   refreshResources: async () => {
     const { resources, warnings } = await discoverCharacterResources();
+    const mediaWarnings = await discoverMediaResources();
+    if (mediaWarnings.length) console.warn(...mediaWarnings);
     const active = resources.sort((a, b) => (b.packageVersion ?? "0").localeCompare(a.packageVersion ?? "0", undefined, { numeric: true }))[0];
     if (warnings.length) console.warn(...warnings);
     if (active) {
