@@ -1,4 +1,4 @@
-import type { Project, Scene } from "../types/project";
+import type { Project, Scene } from "../../types/project";
 
 export interface SceneFrameRange {
   sceneId: string;
@@ -21,8 +21,8 @@ const MAX_RENDER_FRAMES = 10_000_000;
 
 /**
  * Build a deterministic, zero-based frame schedule. Scene boundaries are
- * rounded independently to the nearest output frame; no wall-clock timing
- * or editor playback state is consulted.
+ * rounded cumulatively to the nearest output frame; no wall-clock timing or
+ * editor playback state is consulted.
  */
 export function createRenderPlan(project: Pick<Project, "width" | "height" | "fps" | "scenes">): RenderPlan {
   if (!Number.isInteger(project.width) || project.width < 1 || !Number.isInteger(project.height) || project.height < 1) {
@@ -44,13 +44,7 @@ export function createRenderPlan(project: Pick<Project, "width" | "height" | "fp
     elapsedSeconds += scene.duration;
     const endFrameExclusive = Math.round(elapsedSeconds * project.fps);
     const frameCount = endFrameExclusive - previousEndFrame;
-    const range = {
-      sceneId: scene.id,
-      sceneName: scene.name,
-      startFrame: previousEndFrame,
-      frameCount,
-      endFrameExclusive,
-    };
+    const range = { sceneId: scene.id, sceneName: scene.name, startFrame: previousEndFrame, frameCount, endFrameExclusive };
     previousEndFrame = endFrameExclusive;
     return range;
   });
