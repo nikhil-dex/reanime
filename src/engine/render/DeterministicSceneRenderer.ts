@@ -1,0 +1,98 @@
+import { Application, Container, Graphics } from "pixi.js";
+import type { Scene, CharacterCalibration } from "../../types/project";
+import { resourceRegistry } from "../../data/resourceRegistry";
+import { CharacterRenderer } from "../pixi/CharacterRenderer";
+
+export interface RenderFrameOptions {
+  width: number;
+  height: number;
+  backgroundColor?: number;
+  calibration?: CharacterCalibration;
+}
+
+/**
+ * Fixed-resolution renderer for export. It deliberately owns its own Pixi
+ * application rather than resizing or reading the interactive editor preview.
+ * One renderer instance should be reused for every frame in an export job.
+ */
+export class DeterministicSceneRenderer {
+  private app: Application | null = null;
+  private readonly stage = new Container();
+  private readonly characterRenderer = new CharacterRenderer();
+  private readonly options: RenderFrameOptions;
+
+  constructor(options: RenderFrameOptions) {
+    if (!Number.isInteger(options.width) || options.width < 1
+      || !Number.isInteger(options.height) || options.height < 1) {
+      throw new Error("Export width and height must be positive integers.");
+    }
+    this.options = { backgroundColor: 0x151720, ...options };
+  }
+
+  async initialize(): Promise<void> {
+    if (this.app) return;
+    const app = new Application();
+    await app.init({
+      width: this.options.width,
+      height: this.options.height,
+      resolution: 1,
+      autoDensity: false,
+      antialias: true,
+      background: this.options.backgroundColor,
+      preference: "webgl",
+    });
+    this.app = app;
+    app.stage.addChild(this.stage);
+  }
+
+  async renderScene(scene: Scene): Promise<Blob> {
+    if (!this.app) throw new Error("Export renderer is not initialized.");
+    const app = this.app;
+    this.stage.removeChildren().forEach((child) => child.destroy({ children: true }));
+
+    this.stage.addChild(new Graphics()
+      .rect(0, 0, this.options.width, this.options.height)
+      .fill({ color: this.options.backgroundColor ?? 0x151720 }));
+
+    const orderedCharacters = [...scene.characters]
+      .filter((character) => character.visible)
+      .sort((left, right) => left.layer - right.layer);
+
+    for (const instance of orderedCharacters) {
+      const resource = instance.packageVersion
+        ? resourceRegistry.packages[`${instance.characterId}@${instance.packageVersion}`]
+        : resourceRegistry.characters[instance.characterId];
+      if (!resource) {
+        throw new Error(`Character resource '${instance.characterId}' is not available for export.`);
+      }
+      const calibration = this.options.calibration?.characterId === resource.id
+        && this.options.calibration.packageVersion === resource.packageVersion
+        ? this.options.calibration
+        : resource.calibration;
+      const figure = await this.characterRenderer.render(
+        instance,
+        resource,
+        this.options.width,
+        this.options.height,
+        calibration,
+      );
+      this.stage.addChild(figure);
+    }
+
+    app.renderer.render({ container: this.stage });
+    const canvas = app.renderer.extract.canvas({ target: this.stage });
+    return new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("PixiJS could not encode the rendered frame as PNG."));
+      }, "image/png");
+    });
+  }
+
+  destroy(): void {
+    if (!this.app) return;
+    this.stage.removeChildren().forEach((child) => child.destroy({ children: true }));
+    this.app.destroy(true);
+    this.app = null;
+  }
+}
