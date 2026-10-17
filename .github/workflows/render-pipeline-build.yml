@@ -21,3 +21,13 @@ jobs:
         run: npm ci
       - name: Build TypeScript and frontend
         run: npm run build
+
+  tauri-rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Check native Tauri commands
+        run: cargo check --manifest-path src-tauri/Cargo.toml
