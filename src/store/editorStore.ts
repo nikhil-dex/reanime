@@ -30,6 +30,13 @@ interface EditorState {
   setPlaying: (isPlaying: boolean) => void;
   setPlayhead: (playhead: number) => void;
   updateProjectName: (name: string) => void;
+  setActiveScene: (sceneId: string) => void;
+  addScene: () => void;
+  duplicateScene: (sceneId: string) => void;
+  deleteScene: (sceneId: string) => void;
+  renameScene: (sceneId: string, name: string) => void;
+  updateSceneDuration: (sceneId: string, duration: number) => void;
+  moveScene: (sceneId: string, direction: -1 | 1) => void;
   resetProject: () => void;
   setResourcesReady: (calibration: CharacterCalibration) => void;
   refreshResources: () => Promise<void>;
