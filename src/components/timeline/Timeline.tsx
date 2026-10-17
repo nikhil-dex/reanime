@@ -40,6 +40,7 @@ export function Timeline() {
   const renameScene = useEditorStore((state) => state.renameScene);
   const updateSceneDuration = useEditorStore((state) => state.updateSceneDuration);
   const moveScene = useEditorStore((state) => state.moveScene);
+  const selectedObjectId = useEditorStore((state) => state.selectedObjectId);
   const characters = activeScene?.characters ?? [];
 
   useEffect(() => {
@@ -77,8 +78,12 @@ export function Timeline() {
       };
       tracks.push(track);
     }
-    state.project.scenes = state.project.scenes.map((item) => item.id === scene.id ? { ...item, tracks } : item);
-    useEditorStore.setState({ project: { ...state.project, scenes: [...state.project.scenes] } });
+    useEditorStore.setState((current) => ({
+      project: {
+        ...current.project,
+        scenes: current.project.scenes.map((item) => item.id === scene.id ? { ...item, tracks } : item),
+      },
+    }));
   };
 
   const renameActiveScene = () => {
@@ -104,7 +109,7 @@ export function Timeline() {
             <input aria-label="Scene duration in seconds" type="number" min="0.1" max="600" step="0.5" value={duration} onChange={(event) => updateSceneDuration(activeSceneId, Number(event.target.value))} />
           </label>
           <span>FPS {useEditorStore.getState().project.fps}</span>
-          <button className="text-action" onClick={addCharacterKeyframe} disabled={!useEditorStore.getState().selectedObjectId} title="Capture selected character's current state at the playhead">
+          <button className="text-action" onClick={addCharacterKeyframe} disabled={!selectedObjectId} title="Capture selected character's current state at the playhead">
             <Icon name="plus" /> Add keyframe
           </button>
         </div>
@@ -131,7 +136,7 @@ export function Timeline() {
       </div>
       <div className="timeline-body">
         <div className="track-labels">
-          <div className="track-header">TRACKS <button aria-label="Add character track" title="Add a character from the asset sidebar"><Icon name="plus" /></button></div>
+          <div className="track-header">TRACKS</div>
           {characters.map((character) => <div className="track-name" key={character.id}><span className="track-color character" />{resourceRegistry.characters[character.characterId]?.name ?? character.characterId}</div>)}
           <div className="track-name"><span className="track-color background" />Background</div>
           {(activeScene?.tracks ?? []).map((track) => <div className="track-name" key={track.id}><span className={`track-color ${track.kind}`} />{track.name} · {track.keyframes.length} keys</div>)}
@@ -144,11 +149,11 @@ export function Timeline() {
           </div>
           {characters.map((character) => (
             <div className="track-lane" key={character.id}>
-              <button className="track-clip character" style={{ left: "0%", width: "100%" }} onClick={() => useEditorStore.setState({ selectedObjectId: character.id })} title={`Select ${character.characterId}`}>{character.characterId}</button>
+              <button className="timeline-clip character-clip" style={{ left: "0%", width: "100%" }} onClick={() => useEditorStore.setState({ selectedObjectId: character.id })} title={`Select ${character.characterId}`}>{character.characterId}</button>
             </div>
           ))}
           <div className="track-lane">
-            <div className="track-clip background" style={{ left: "0%", width: "100%" }}>{activeScene?.background || "No background"}</div>
+            <div className="timeline-clip background-clip" style={{ left: "0%", width: "100%" }}>{activeScene?.background || "No background"}</div>
           </div>
           {(activeScene?.tracks ?? []).map((track) => (
             <div className="track-lane" key={track.id}>
@@ -157,10 +162,7 @@ export function Timeline() {
               ))}
             </div>
           ))}
-          <button className="playhead" style={{ left: `${Math.min(100, Math.max(0, playhead / duration * 100))}%` }} onClick={(event) => {
-            const rect = event.currentTarget.parentElement?.getBoundingClientRect();
-            if (rect) setPlayhead(Math.min(duration, Math.max(0, ((event.clientX - rect.left) / rect.width) * duration)));
-          }} aria-label="Timeline playhead" title="Click to seek"><span /></button>
+          <div className="playhead" style={{ left: `${Math.min(100, Math.max(0, playhead / duration * 100))}%` }}><i /></div>
         </div>
       </div>
     </section>
