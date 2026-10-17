@@ -30,6 +30,7 @@ export function AssetSidebar() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"name" | "recent">("recent");
   const [pendingDelete, setPendingDelete] = useState<CharacterPackageSummary | null>(null);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const addCharacter = useEditorStore((state) => state.addCharacter);
   const activateCharacter = useEditorStore((state) => state.activateCharacter);
@@ -72,6 +73,33 @@ export function AssetSidebar() {
       setImportError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || deletingPath) return;
+    const target = pendingDelete;
+    const inUse = project.scenes.some((scene) => scene.characters.some((item) => item.characterId === target.characterId));
+    if (inUse) {
+      setNotice(`${target.displayName} is used in the current project. Remove it from all scenes before deleting.`);
+      setPendingDelete(null);
+      return;
+    }
+    setDeletingPath(target.installedPath);
+    try {
+      await removeCharacterPackage(target.installedPath);
+      setInstalled((current) => current.filter((item) => item.installedPath !== target.installedPath));
+      setPendingDelete(null);
+      setNotice(`${target.displayName} deleted from the library.`);
+      try {
+        await refreshResources();
+      } catch (error) {
+        setNotice(`${target.displayName} was deleted, but editor resources could not refresh: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } catch (error) {
+      setNotice(`Could not delete ${target.displayName}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setDeletingPath(null);
     }
   };
 
@@ -119,7 +147,7 @@ export function AssetSidebar() {
                 <div className="library-actions">
                   <button onClick={() => { if (character) { activateCharacter(character.id); addCharacter(character.id); setCalibrationMode(false); } }} disabled={!character} title="Use Character">Use</button>
                   <button onClick={() => { if (character) { activateCharacter(character.id); setCalibrationMode(true); } }} disabled={!character} title="Edit or calibrate">Calibrate</button>
-                  <button className="danger-action" onClick={() => setPendingDelete(item)} title="Delete Character" disabled={item.status === "error"}>Delete</button>
+                  <button className="danger-action" onClick={() => setPendingDelete(item)} title="Delete Character">Delete</button>
                 </div>
               </article>;
             })}
@@ -163,11 +191,7 @@ export function AssetSidebar() {
           </section>
         </div>
       )}
-      {pendingDelete && <div className="library-modal-backdrop"><section className="library-modal" role="dialog" aria-modal="true"><div className="library-details"><h3>Delete {pendingDelete.displayName}?</h3><p>This removes the character from your local Re:Anime library. Saved scenes that use it will need a replacement.</p><div className="modal-actions"><button className="select-field" onClick={() => setPendingDelete(null)}>Cancel</button><button className="select-field danger-action" onClick={() => {
-        const inUse = project.scenes.some((scene) => scene.characters.some((item) => item.characterId === pendingDelete.characterId));
-        if (inUse) { setNotice("This character is used in the current project. Remove it from all scenes before deleting."); setPendingDelete(null); return; }
-        void removeCharacterPackage(pendingDelete.characterId, pendingDelete.version).then(async () => { setPendingDelete(null); await reloadLibrary(); await refreshResources(); setNotice("Character deleted."); }).catch((error: unknown) => setNotice(`Delete failed: ${String(error)}`));
-      }}>Delete</button></div></div></section></div>}
+      {pendingDelete && <div className="library-modal-backdrop"><section className="library-modal" role="dialog" aria-modal="true"><div className="library-details"><h3>Delete {pendingDelete.displayName}?</h3><p>This removes the character from your local Re:Anime library. Saved scenes that use it will need a replacement.</p><div className="modal-actions"><button className="select-field" onClick={() => setPendingDelete(null)} disabled={deletingPath !== null}>Cancel</button><button className="select-field danger-action" onClick={() => void confirmDelete()} disabled={deletingPath !== null}>{deletingPath === pendingDelete.installedPath ? "Deleting…" : "Delete"}</button></div></div></section></div>}
       {notice && <div className="library-toast" role="status">{notice}<button onClick={() => setNotice(null)}>×</button></div>}
     </aside>
   );

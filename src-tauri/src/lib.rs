@@ -999,28 +999,32 @@ fn copy_dir(source: &Path, destination: &Path) -> Result<(), String> {
 #[tauri::command]
 fn remove_character_package(
     app: tauri::AppHandle,
-    character_id: String,
-    version: String,
+    managed_path: String,
 ) -> Result<(), String> {
-    let root = ensure_library(&app)?;
-    for entry in fs::read_dir(&root).map_err(|error| error.to_string())? {
-        let path = entry.map_err(|error| error.to_string())?.path();
-        if path.is_dir()
-            && package_from_manifest(&path)
-                .map(|item| item.character_id == character_id && item.version == version)
-                .unwrap_or(false)
-        {
-            if path.parent() != Some(root.as_path()) {
-                return Err("refusing to remove a path outside managed character storage".into());
-            }
-            fs::remove_dir_all(path)
-                .map_err(|error| format!("unable to remove package: {error}"))?;
-            return Ok(());
-        }
+    let root = ensure_library(&app)?
+        .canonicalize()
+        .map_err(|error| format!("unable to resolve managed character storage: {error}"))?;
+    let requested = PathBuf::from(managed_path);
+    let name = requested
+        .file_name()
+        .ok_or("invalid managed character path")?;
+    if name.to_string_lossy().starts_with(".import-") {
+        return Err("refusing to remove an import staging directory".into());
     }
-    Err(format!(
-        "character package is not installed: {character_id} {version}"
-    ))
+    let candidate = root.join(name);
+    let metadata = fs::symlink_metadata(&candidate)
+        .map_err(|error| format!("managed character package is unavailable: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err("managed character package must be a directory owned by the library".into());
+    }
+    let resolved = candidate
+        .canonicalize()
+        .map_err(|error| format!("unable to resolve managed character package: {error}"))?;
+    if resolved.parent() != Some(root.as_path()) {
+        return Err("refusing to remove a path outside managed character storage".into());
+    }
+    fs::remove_dir_all(resolved)
+        .map_err(|error| format!("unable to remove managed character package: {error}"))
 }
 
 #[tauri::command]

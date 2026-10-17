@@ -34,9 +34,9 @@ export async function listInstalledCharacterPackages(): Promise<CharacterPackage
   return invoke<CharacterPackageSummary[]>("list_character_packages");
 }
 
-export async function removeCharacterPackage(characterId: string, version: string): Promise<void> {
+export async function removeCharacterPackage(managedPath: string): Promise<void> {
   if (!tauriAvailable()) throw new Error("Character package removal is available in the desktop app.");
-  await invoke("remove_character_package", { characterId, version });
+  await invoke("remove_character_package", { managedPath });
 }
 
 export function assetUrl(path: string): string {
